@@ -7,6 +7,7 @@ import DashboardLayout from './components/DashboardLayout.jsx';
 import DashboardOverview from './pages/DashboardOverview.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import SpacesPage from './pages/SpacesPage.jsx';
+import TicketsPage from './pages/TicketsPage.jsx';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('adminToken') || '');
@@ -53,6 +54,7 @@ function App() {
           <Route index element={<DashboardOverview />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="spaces" element={<SpacesPage />} />
+          <Route path="tickets" element={<TicketsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />

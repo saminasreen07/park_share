@@ -7,6 +7,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../parking/providers/space_provider.dart';
 import '../../parking/screens/parking_detail_screen.dart';
 import '../../booking/screens/booking_history_screen.dart';
+import '../../support/screens/support_screen.dart';
 
 class DriverHomeScreen extends ConsumerStatefulWidget {
   const DriverHomeScreen({super.key});
@@ -26,6 +27,31 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   bool _onlyEV = false;
 
   final LatLng _defaultLocation = const LatLng(12.9716, 77.5946); // Bangalore standard default
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF161E2E),
+        title: const Text("Log Out", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text("Are you sure you want to log out from ParkShare?", style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              ref.read(authProvider.notifier).logout();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text("Log Out"),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -236,22 +262,24 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       body: Stack(
         children: [
           // Google Map Background Widget
-          kIsWeb
-              ? _WebMapFallback(spaces: spaceState.nearbySpaces, onlyEV: _onlyEV)
-              : GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _currentPosition != null
-                        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                        : _defaultLocation,
-                    zoom: 14,
+          Positioned.fill(
+            child: kIsWeb
+                ? _WebMapFallback(spaces: spaceState.nearbySpaces, onlyEV: _onlyEV)
+                : GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: _currentPosition != null
+                          ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                          : _defaultLocation,
+                      zoom: 14,
+                    ),
+                    onMapCreated: (controller) => _mapController = controller,
+                    markers: _markers,
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: false,
+                    zoomControlsEnabled: false,
+                    mapToolbarEnabled: false,
                   ),
-                  onMapCreated: (controller) => _mapController = controller,
-                  markers: _markers,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
-                  mapToolbarEnabled: false,
-                ),
+          ),
 
           // Floating Glassmorphic Search Header
           Positioned(
@@ -317,6 +345,20 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                         ),
                       );
                     },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.contact_support_rounded, color: Colors.indigoAccent),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const SupportScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                    onPressed: () => _showLogoutDialog(context, ref),
                   ),
                 ],
               ),

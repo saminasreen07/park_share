@@ -13,6 +13,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import ticketRoutes from './routes/ticketRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -58,6 +59,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/tickets', ticketRoutes);
 
 // 404 Route handler
 app.use((req, res, next) => {

@@ -11,7 +11,7 @@ class ApiClient {
       return 'http://localhost:5000/api';
     }
     // For Android emulator, use 10.0.2.2. For physical devices on same WiFi, replace this with your machine's IP (e.g. 192.168.1.X)
-    return Platform.isAndroid ? 'http://10.153.175.206:5000/api' : 'http://localhost:5000/api';
+    return Platform.isAndroid ? 'http://10.44.174.106:5000/api' : 'http://localhost:5000/api';
   }
 
   Future<Map<String, String>> _getHeaders() async {
@@ -31,7 +31,7 @@ class ApiClient {
     try {
       return await http.get(url, headers: headers).timeout(const Duration(seconds: 15));
     } catch (e) {
-      throw Exception('Network error: Check if backend API server is online');
+      throw Exception('Network error ($e): Check if backend API server is online at $baseUrl');
     }
   }
 
@@ -45,7 +45,7 @@ class ApiClient {
         body: jsonEncode(body),
       ).timeout(const Duration(seconds: 15));
     } catch (e) {
-      throw Exception('Network error: Check if backend API server is online');
+      throw Exception('Network error ($e): Check if backend API server is online at $baseUrl');
     }
   }
 
@@ -59,7 +59,7 @@ class ApiClient {
         body: jsonEncode(body),
       ).timeout(const Duration(seconds: 15));
     } catch (e) {
-      throw Exception('Network error: Check if backend API server is online');
+      throw Exception('Network error ($e): Check if backend API server is online at $baseUrl');
     }
   }
 
@@ -73,7 +73,7 @@ class ApiClient {
         body: jsonEncode(body),
       ).timeout(const Duration(seconds: 15));
     } catch (e) {
-      throw Exception('Network error: Check if backend API server is online');
+      throw Exception('Network error ($e): Check if backend API server is online at $baseUrl');
     }
   }
 
@@ -83,7 +83,7 @@ class ApiClient {
     try {
       return await http.delete(url, headers: headers).timeout(const Duration(seconds: 15));
     } catch (e) {
-      throw Exception('Network error: Check if backend API server is online');
+      throw Exception('Network error ($e): Check if backend API server is online at $baseUrl');
     }
   }
 }

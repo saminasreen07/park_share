@@ -54,10 +54,23 @@ class _ParkingDetailScreenState extends ConsumerState<ParkingDetailScreen> {
                   ),
                 ),
                 flexibleSpace: FlexibleSpaceBar(
-                  background: Image.network(
-                    space.images.isNotEmpty ? space.images[0] : 'https://images.unsplash.com/photo-1506521788701-1e13a4e83c2a?q=80&w=600&auto=format&fit=crop',
-                    fit: BoxFit.cover,
-                  ),
+                  background: space.images.isNotEmpty
+                      ? Image.network(
+                          space.images[0],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: const Color(0xFF1E293B),
+                            child: const Center(
+                              child: Icon(Icons.local_parking_rounded, color: Colors.white54, size: 48),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: const Color(0xFF1E293B),
+                          child: const Center(
+                            child: Icon(Icons.local_parking_rounded, color: Colors.white54, size: 48),
+                          ),
+                        ),
                 ),
               ),
 

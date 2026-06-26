@@ -7,6 +7,7 @@ import '../../booking/providers/booking_provider.dart';
 import '../../wallet/screens/wallet_screen.dart';
 import '../../owner_space/screens/add_space_screen.dart';
 import '../../parking/screens/parking_detail_screen.dart';
+import '../../support/screens/support_screen.dart';
 
 class OwnerHomeScreen extends ConsumerStatefulWidget {
   const OwnerHomeScreen({super.key});
@@ -16,6 +17,31 @@ class OwnerHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF161E2E),
+        title: const Text("Log Out", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text("Are you sure you want to log out from ParkShare?", style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              ref.read(authProvider.notifier).logout();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text("Log Out"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +79,20 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
               // Switch back to driver mode
               ref.read(authProvider.notifier).switchRole('driver');
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.contact_support_rounded, color: Colors.indigoAccent),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SupportScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+            onPressed: () => _showLogoutDialog(context, ref),
           ),
         ],
       ),
@@ -196,16 +236,32 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                                 children: [
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      space.images.isNotEmpty ? space.images[0] : 'https://images.unsplash.com/photo-1506521788701-1e13a4e83c2a?q=80&w=600&auto=format&fit=crop',
-                                      width: 60,
-                                      height: 60,
-                                      fit: BoxFit.cover,
-                                    ),
+                                    child: space.images.isNotEmpty
+                                        ? Image.network(
+                                            space.images[0],
+                                            width: 60,
+                                            height: 60,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Container(
+                                                width: 60,
+                                                height: 60,
+                                                color: const Color(0xFF1E293B),
+                                                child: const Icon(Icons.local_parking_rounded, color: Colors.white54, size: 24),
+                                              );
+                                            },
+                                          )
+                                        : Container(
+                                            width: 60,
+                                            height: 60,
+                                            color: const Color(0xFF1E293B),
+                                            child: const Icon(Icons.local_parking_rounded, color: Colors.white54, size: 24),
+                                          ),
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
+                                      mainAxisSize: MainAxisSize.min,
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
@@ -288,6 +344,7 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                                 border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                               ),
                               child: Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -322,6 +379,7 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Column(
+                                        mainAxisSize: MainAxisSize.min,
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           const Text("EARNED", style: TextStyle(color: Color(0xFF64748B), fontSize: 10)),
@@ -332,6 +390,7 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                                         ],
                                       ),
                                       Column(
+                                        mainAxisSize: MainAxisSize.min,
                                         crossAxisAlignment: CrossAxisAlignment.end,
                                         children: [
                                           const Text("DATE & TIMING", style: TextStyle(color: Color(0xFF64748B), fontSize: 10)),

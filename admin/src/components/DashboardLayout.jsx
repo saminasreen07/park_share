@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, MapPin, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, MapPin, LogOut, HelpCircle } from 'lucide-react';
 
 export default function DashboardLayout({ handleLogout }) {
   const location = useLocation();
@@ -8,6 +8,7 @@ export default function DashboardLayout({ handleLogout }) {
     { name: 'Overview', path: '/', icon: LayoutDashboard },
     { name: 'User Management', path: '/users', icon: Users },
     { name: 'Parking Listings', path: '/spaces', icon: MapPin },
+    { name: 'Support Tickets', path: '/tickets', icon: HelpCircle },
   ];
 
   return (

@@ -263,12 +263,25 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        widget.space.images.isNotEmpty ? widget.space.images[0] : 'https://images.unsplash.com/photo-1506521788701-1e13a4e83c2a?q=80&w=600&auto=format&fit=crop',
-                        width: 64,
-                        height: 64,
-                        fit: BoxFit.cover,
-                      ),
+                      child: widget.space.images.isNotEmpty
+                          ? Image.network(
+                              widget.space.images[0],
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                width: 64,
+                                height: 64,
+                                color: const Color(0xFF1E293B),
+                                child: const Icon(Icons.local_parking_rounded, color: Colors.white54, size: 24),
+                              ),
+                            )
+                          : Container(
+                              width: 64,
+                              height: 64,
+                              color: const Color(0xFF1E293B),
+                              child: const Icon(Icons.local_parking_rounded, color: Colors.white54, size: 24),
+                            ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(

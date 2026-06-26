@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Booking from '../models/Booking.js';
 import ParkingSpace from '../models/ParkingSpace.js';
 import User from '../models/User.js';
@@ -14,19 +15,27 @@ const calculateHours = (start, end) => {
 
 // Create booking draft
 export const createBooking = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { spaceId, startTime, endTime } = req.body;
 
     if (!spaceId || !startTime || !endTime) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: 'Please provide spaceId, startTime, and endTime' });
     }
 
-    const space = await ParkingSpace.findById(spaceId);
+    const space = await ParkingSpace.findById(spaceId).session(session);
     if (!space) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ success: false, message: 'Parking space not found' });
     }
 
     if (space.status !== 'approved') {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: 'Parking space is not active' });
     }
 
@@ -34,6 +43,8 @@ export const createBooking = async (req, res) => {
     const end = new Date(endTime);
 
     if (start >= end) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: 'Start time must be before end time' });
     }
 
@@ -44,9 +55,11 @@ export const createBooking = async (req, res) => {
       $or: [
         { startTime: { $lt: end }, endTime: { $gt: start } }
       ]
-    });
+    }).session(session);
 
     if (activeConflicts.length >= space.totalSlots) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ 
         success: false, 
         message: 'No slots available for this parking space during the selected timeframe' 
@@ -57,7 +70,7 @@ export const createBooking = async (req, res) => {
     const totalAmount = parseFloat((duration * space.pricePerHour).toFixed(2));
     const receiptId = `REC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const booking = await Booking.create({
+    const booking = await Booking.create([{
       driverId: req.user._id,
       spaceId,
       startTime: start,
@@ -65,19 +78,26 @@ export const createBooking = async (req, res) => {
       totalAmount,
       status: 'pending',
       receiptId,
-    });
+    }], { session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json({ 
       success: true, 
       message: 'Booking request created successfully', 
-      data: booking 
+      data: booking[0] 
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // Confirm booking after payment verification
+// NOTE: Wallet crediting is handled exclusively by paymentController.verifyPayment
+// to prevent double-crediting. This endpoint only updates booking status.
 export const confirmBooking = async (req, res, paymentIdValue = null) => {
   try {
     const { bookingId, paymentId } = req.body;
@@ -96,29 +116,6 @@ export const confirmBooking = async (req, res, paymentIdValue = null) => {
     booking.paymentId = finalPaymentId;
     await booking.save();
 
-    // 10% platform fee, 90% payout to host
-    const ownerShare = parseFloat((booking.totalAmount * 0.9).toFixed(2));
-    
-    // Find or create Owner Wallet
-    let wallet = await OwnerWallet.findOne({ ownerId: booking.spaceId.ownerId });
-    if (!wallet) {
-      wallet = await OwnerWallet.create({ ownerId: booking.spaceId.ownerId });
-    }
-
-    wallet.balance += ownerShare;
-    wallet.accumulatedEarnings += ownerShare;
-    await wallet.save();
-
-    // Log earning transaction
-    await Transaction.create({
-      walletId: wallet._id,
-      bookingId: booking._id,
-      type: 'earning',
-      amount: ownerShare,
-      status: 'success',
-      referenceNumber: `EARN-${booking._id.toString().slice(-6).toUpperCase()}`,
-    });
-
     // Create notifications for both driver and owner
     await Notification.create({
       userId: booking.driverId,
@@ -129,14 +126,14 @@ export const confirmBooking = async (req, res, paymentIdValue = null) => {
 
     await Notification.create({
       userId: booking.spaceId.ownerId,
-      title: 'New Booking Earning!',
-      body: `Your space ${booking.spaceId.title} was booked. You earned ₹${ownerShare.toFixed(2)} (after platform fee)`,
-      type: 'wallet'
+      title: 'New Booking Received!',
+      body: `Your space ${booking.spaceId.title} has a new booking.`,
+      type: 'booking'
     });
 
     res.status(200).json({ 
       success: true, 
-      message: 'Booking confirmed and wallet updated successfully', 
+      message: 'Booking confirmed successfully', 
       data: booking 
     });
   } catch (error) {
@@ -154,25 +151,17 @@ export const getUserBookings = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    // Dynamically update status if the booking has started or ended
+    // Dynamically compute status for response without mutating DB
     const now = new Date();
-    let updated = false;
-
-    for (let booking of bookings) {
-      if (booking.status === 'confirmed' && now >= booking.startTime && now < booking.endTime) {
-        booking.status = 'active';
-        await booking.save();
-        updated = true;
-      } else if (['confirmed', 'active'].includes(booking.status) && now >= booking.endTime) {
-        booking.status = 'completed';
-        await booking.save();
-        updated = true;
+    const finalBookings = bookings.map(b => {
+      const doc = b.toObject();
+      if (doc.status === 'confirmed' && now >= doc.startTime && now < doc.endTime) {
+        doc.status = 'active';
+      } else if (['confirmed', 'active'].includes(doc.status) && now >= doc.endTime) {
+        doc.status = 'completed';
       }
-    }
-
-    const finalBookings = updated 
-      ? await Booking.find({ driverId: req.user._id }).populate('spaceId').sort({ createdAt: -1 })
-      : bookings;
+      return doc;
+    });
 
     res.status(200).json({ success: true, count: finalBookings.length, data: finalBookings });
   } catch (error) {
@@ -192,7 +181,18 @@ export const getOwnerBookings = async (req, res) => {
       .populate('driverId', 'name phone email')
       .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, count: bookings.length, data: bookings });
+    const now = new Date();
+    const finalBookings = bookings.map(b => {
+      const doc = b.toObject();
+      if (doc.status === 'confirmed' && now >= doc.startTime && now < doc.endTime) {
+        doc.status = 'active';
+      } else if (['confirmed', 'active'].includes(doc.status) && now >= doc.endTime) {
+        doc.status = 'completed';
+      }
+      return doc;
+    });
+
+    res.status(200).json({ success: true, count: finalBookings.length, data: finalBookings });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -212,7 +212,15 @@ export const getBookingById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    res.status(200).json({ success: true, data: booking });
+    const now = new Date();
+    const doc = booking.toObject();
+    if (doc.status === 'confirmed' && now >= doc.startTime && now < doc.endTime) {
+      doc.status = 'active';
+    } else if (['confirmed', 'active'].includes(doc.status) && now >= doc.endTime) {
+      doc.status = 'completed';
+    }
+
+    res.status(200).json({ success: true, data: doc });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -235,12 +243,41 @@ export const cancelBooking = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to cancel this booking' });
     }
 
+    const now = new Date();
+    if (booking.status === 'confirmed' && now >= booking.startTime && now < booking.endTime) {
+      booking.status = 'active';
+    } else if (['confirmed', 'active'].includes(booking.status) && now >= booking.endTime) {
+      booking.status = 'completed';
+    }
+
     if (booking.status === 'completed' || booking.status === 'cancelled') {
       return res.status(400).json({ success: false, message: `Cannot cancel a ${booking.status} booking` });
     }
 
+    const wasConfirmed = (booking.status === 'confirmed' || booking.status === 'active');
+
     booking.status = 'cancelled';
     await booking.save();
+
+    // Reverse wallet crediting if it was already confirmed
+    if (wasConfirmed) {
+      const ownerShare = parseFloat((booking.totalAmount * 0.9).toFixed(2));
+      let wallet = await OwnerWallet.findOne({ ownerId: booking.spaceId.ownerId });
+      if (wallet) {
+        wallet.balance -= ownerShare;
+        wallet.accumulatedEarnings -= ownerShare;
+        await wallet.save();
+
+        await Transaction.create({
+          walletId: wallet._id,
+          bookingId: booking._id,
+          type: 'refund',
+          amount: ownerShare,
+          status: 'success',
+          referenceNumber: `RFND-${booking._id.toString().slice(-6).toUpperCase()}`,
+        });
+      }
+    }
 
     // Notify driver and owner
     await Notification.create({

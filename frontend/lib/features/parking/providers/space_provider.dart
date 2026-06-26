@@ -52,7 +52,7 @@ class SpaceModel {
     final double lng = coords != null && coords.isNotEmpty ? (coords[0] as num).toDouble() : 0.0;
     final double lat = coords != null && coords.length > 1 ? (coords[1] as num).toDouble() : 0.0;
 
-    final owner = json['ownerId'] as Map<String, dynamic>?;
+    final owner = json['ownerId'] is Map<String, dynamic> ? json['ownerId'] as Map<String, dynamic> : null;
     final ownerName = owner != null ? owner['name'] ?? '' : '';
     final ownerPhone = owner != null ? owner['phone'] ?? '' : '';
 

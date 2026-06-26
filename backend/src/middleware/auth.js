@@ -77,17 +77,45 @@ export const protect = async (req, res, next) => {
         }
       }
 
+      const uid = decodedToken.uid || decodedToken.id; // fallback to id for local JWT
       const email = decodedToken.email;
-      let user = await User.findOne({ email });
+      const phone = decodedToken.phone_number;
+
+      let user = await User.findOne({ firebaseUid: uid });
+
+      if (!user && email) {
+        user = await User.findOne({ email });
+        if (user) {
+          user.firebaseUid = uid;
+          if (phone && !user.phone) {
+            user.phone = phone;
+          }
+          await user.save();
+        }
+      }
+
+      if (!user && phone) {
+        user = await User.findOne({ phone });
+        if (user) {
+          user.firebaseUid = uid;
+          if (email && !user.email) {
+            user.email = email;
+          }
+          await user.save();
+        }
+      }
 
       if (!user) {
         // Create user records automatically on first successful OAuth or OTP login
+        const generatedEmail = email || `${phone ? phone.replace(/[^0-9]/g, '') : uid}@parkshare.placeholder.com`;
+        const generatedPhone = phone || `+91${uid.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10)}`;
+
         user = await User.create({
-          name: decodedToken.name || email.split('@')[0],
-          email: email,
-          phone: decodedToken.phone_number || '+910000000000',
+          name: decodedToken.name || (email ? email.split('@')[0] : `User_${uid.substring(0, 5)}`),
+          email: generatedEmail,
+          phone: generatedPhone,
           role: 'driver', // Default role
-          firebaseUid: decodedToken.uid,
+          firebaseUid: uid,
           isVerified: true,
         });
       }
@@ -101,7 +129,7 @@ export const protect = async (req, res, next) => {
   }
 
   if (!token) {
-    res.status(401).json({ success: false, message: 'Not authorized, no token' });
+    return res.status(401).json({ success: false, message: 'Not authorized, no token' });
   }
 };
 

@@ -14,7 +14,7 @@ const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 const hasValidConfig = projectId && 
                         clientEmail && 
                         privateKey && 
-                        !projectId.includes('prod') && 
+                        !projectId.includes('your-project-id') && 
                         !clientEmail.includes('xxxxx');
 
 if (hasValidConfig) {

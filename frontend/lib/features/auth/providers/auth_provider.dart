@@ -123,18 +123,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // Simulated OTP / OAuth Login
-  Future<bool> login(String identifier, String roleSelection) async {
+  // Firebase / Simulated OTP Login
+  Future<bool> login(String token, String roleSelection) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // Simulate OAuth/OTP token generation
-      // We generate a token prefixed with mock- to alert middleware to bypass Firebase verification
-      final mockToken = 'mock-$roleSelection-${DateTime.now().millisecondsSinceEpoch}';
-      await prefs.setString('auth_token', mockToken);
+      // Store the token (either mock- or real Firebase ID Token)
+      await prefs.setString('auth_token', token);
 
-      // Call getCurrentUser profile (middleware automatically creates mock user based on role)
+      // Call getCurrentUser profile
       final response = await _apiClient.get('/auth/me');
       
       if (response.statusCode == 200) {
@@ -152,9 +150,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       }
       
+      // If it failed, clear the auth token
+      await prefs.remove('auth_token');
       state = state.copyWith(isLoading: false, errorMessage: 'Failed to retrieve profile');
       return false;
     } catch (e) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }

@@ -255,9 +255,9 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF161E2E).withOpacity(0.5),
+                  color: const Color(0xFF161E2E).withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.06)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                 ),
                 child: Row(
                   children: [
@@ -304,7 +304,7 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF161E2E),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                         ),
                         child: Column(
                           children: [
@@ -328,7 +328,7 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF161E2E),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                         ),
                         child: Column(
                           children: [
@@ -353,9 +353,9 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF161E2E).withOpacity(0.5),
+                  color: const Color(0xFF161E2E).withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.06)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                 ),
                 child: Column(
                   children: [

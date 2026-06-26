@@ -262,9 +262,9 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
                                 margin: const EdgeInsets.only(bottom: 16),
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF161E2E).withOpacity(0.6),
+                                  color: const Color(0xFF161E2E).withValues(alpha: 0.6),
                                   borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(color: Colors.white.withOpacity(0.06)),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -284,10 +284,10 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: booking.status == 'confirmed'
-                                                ? Colors.green.withOpacity(0.15)
+                                                ? Colors.green.withValues(alpha: 0.15)
                                                 : booking.status == 'active'
-                                                    ? Colors.amber.withOpacity(0.15)
-                                                    : Colors.blueGrey.withOpacity(0.15),
+                                                    ? Colors.amber.withValues(alpha: 0.15)
+                                                    : Colors.blueGrey.withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(

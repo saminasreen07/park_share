@@ -195,7 +195,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   // EV Checkbox
                   SwitchListTile(
                     title: const Text("EV Charger Availability", style: TextStyle(fontSize: 14)),
-                    activeColor: Colors.indigoAccent,
+                    activeThumbColor: Colors.indigoAccent,
                     value: _onlyEV,
                     onChanged: (val) {
                       setSheetState(() => _onlyEV = val);
@@ -261,12 +261,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFF161E2E).withOpacity(0.85),
+                color: const Color(0xFF161E2E).withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.25),
+                    color: Colors.black.withValues(alpha: 0.25),
                     blurRadius: 20,
                     offset: const Offset(0, 5),
                   )
@@ -332,10 +332,10 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.indigoAccent.withOpacity(0.85),
+                  color: Colors.indigoAccent.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
-                    BoxShadow(color: Colors.indigoAccent.withOpacity(0.2), blurRadius: 10)
+                    BoxShadow(color: Colors.indigoAccent.withValues(alpha: 0.2), blurRadius: 10)
                   ]
                 ),
                 child: Row(
@@ -390,12 +390,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                             margin: const EdgeInsets.only(right: 16),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF161E2E).withOpacity(0.9),
+                              color: const Color(0xFF161E2E).withValues(alpha: 0.9),
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: Colors.white.withOpacity(0.08)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   blurRadius: 15,
                                   offset: const Offset(0, 5),
                                 )
@@ -419,7 +419,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.indigo.withOpacity(0.3),
+                                        color: Colors.indigo.withValues(alpha: 0.3),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(

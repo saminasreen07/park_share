@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/auth_provider.dart';
 import 'otp_screen.dart';
 
@@ -16,6 +17,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   String _selectedRole = 'driver'; // default role selector
+  bool _isOtpRequesting = false;
 
   @override
   void dispose() {
@@ -24,35 +26,111 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _handleRequestOtp() {
-    if (_formKey.currentState!.validate()) {
-      // Simulate loading/triggering OTP screen
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => OtpScreen(
-            phoneNumber: _phoneController.text,
-            email: _emailController.text,
-            selectedRole: _selectedRole,
-          ),
-        ),
+  Future<void> _handleRequestOtp() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isOtpRequesting = true;
+    });
+
+    String phone = _phoneController.text.trim();
+    if (!phone.startsWith('+')) {
+      phone = '+91$phone'; // Prepend India country code by default if not present
+    }
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phone,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // If auto-retrieval succeeds, we can automatically sign in and proceed
+          try {
+            final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+            final idToken = await userCredential.user?.getIdToken();
+            if (idToken != null) {
+              final success = await ref.read(authProvider.notifier).login(
+                idToken,
+                _selectedRole,
+              );
+              if (!success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(ref.read(authProvider).errorMessage ?? 'Login Failed'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(e.toString()),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
+          } finally {
+            if (mounted) {
+              setState(() {
+                _isOtpRequesting = false;
+              });
+            }
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          if (mounted) {
+            setState(() {
+              _isOtpRequesting = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(e.message ?? 'Verification failed'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          if (mounted) {
+            setState(() {
+              _isOtpRequesting = false;
+            });
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => OtpScreen(
+                  phoneNumber: phone,
+                  email: _emailController.text,
+                  selectedRole: _selectedRole,
+                  verificationId: verificationId,
+                ),
+              ),
+            );
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          if (mounted) {
+            setState(() {
+              _isOtpRequesting = false;
+            });
+          }
+        },
       );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isOtpRequesting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    final success = await ref.read(authProvider.notifier).login(
-      _emailController.text.isNotEmpty ? _emailController.text : 'google.user@parkshare.com', 
-      _selectedRole
-    );
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ref.read(authProvider).errorMessage ?? 'Login Failed'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.indigo.withOpacity(0.18),
+                color: Colors.indigo.withValues(alpha: 0.18),
               ),
             ),
           ),
@@ -82,7 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blue.withOpacity(0.12),
+                color: Colors.blue.withValues(alpha: 0.12),
               ),
             ),
           ),
@@ -129,15 +207,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Container(
                         padding: const EdgeInsets.all(24.0),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF161E2E).withOpacity(0.5),
+                          color: const Color(0xFF161E2E).withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.06),
+                            color: Colors.white.withValues(alpha: 0.06),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               blurRadius: 30,
                               offset: const Offset(0, 10),
                             ),
@@ -157,12 +235,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       decoration: BoxDecoration(
                                         color: _selectedRole == 'driver' 
-                                            ? Colors.indigo.withOpacity(0.3) 
+                                            ? Colors.indigo.withValues(alpha: 0.3) 
                                             : Colors.transparent,
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color: _selectedRole == 'driver' 
-                                              ? Colors.indigo.withOpacity(0.4) 
+                                              ? Colors.indigo.withValues(alpha: 0.4) 
                                               : Colors.transparent,
                                         ),
                                       ),
@@ -182,12 +260,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       decoration: BoxDecoration(
                                         color: _selectedRole == 'owner' 
-                                            ? Colors.indigo.withOpacity(0.3) 
+                                            ? Colors.indigo.withValues(alpha: 0.3) 
                                             : Colors.transparent,
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color: _selectedRole == 'owner' 
-                                              ? Colors.indigo.withOpacity(0.4) 
+                                              ? Colors.indigo.withValues(alpha: 0.4) 
                                               : Colors.transparent,
                                         ),
                                       ),
@@ -231,7 +309,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             const SizedBox(height: 24),
 
                             // Submit Button
-                            authState.isLoading
+                            (authState.isLoading || _isOtpRequesting)
                                 ? const Center(
                                     child: SpinKitRing(
                                       color: Colors.indigo,
@@ -247,40 +325,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // OR Separator
-                      const Row(
-                        children: [
-                          Expanded(child: Divider(color: Color(0xFF334155))),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              "OR CONNECT WITH",
-                              style: TextStyle(color: Color(0xFF64748B), fontSize: 11, letterSpacing: 1),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: Color(0xFF334155))),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
 
-                      // Google Sign In Button
-                      OutlinedButton.icon(
-                        onPressed: _handleGoogleSignIn,
-                        icon: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
-                          height: 20,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, size: 24),
-                        ),
-                        label: const Text("Continue with Google"),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 52),
-                          side: BorderSide(color: Colors.white.withOpacity(0.08)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          foregroundColor: const Color(0xFFF8FAFC),
-                        ),
-                      ),
                     ],
                   ),
                 ),

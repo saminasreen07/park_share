@@ -18,27 +18,26 @@ class AppTheme {
         primary: accentIndigo,
         secondary: primaryBlue,
         surface: darkCard,
-        background: darkBg,
         error: Colors.redAccent,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: darkCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white.withOpacity(0.06), width: 1),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.06), width: 1),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: darkCard.withOpacity(0.6),
+        fillColor: darkCard.withValues(alpha: 0.6),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -81,15 +80,15 @@ class AppTheme {
     double borderWidth = 1.0,
   }) {
     return BoxDecoration(
-      color: (color ?? darkCard).withOpacity(0.45),
+      color: (color ?? darkCard).withValues(alpha: 0.45),
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         width: borderWidth,
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.2),
+          color: Colors.black.withValues(alpha: 0.2),
           blurRadius: 24,
           offset: const Offset(0, 8),
         ),
@@ -101,7 +100,7 @@ class AppTheme {
 class BorderHelper {
   static Border buildGlassBorder() {
     return Border.all(
-      color: Colors.white.withOpacity(0.08),
+      color: Colors.white.withValues(alpha: 0.08),
       width: 1.0,
     );
   }

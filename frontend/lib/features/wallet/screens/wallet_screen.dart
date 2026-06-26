@@ -156,9 +156,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                     _fetchWalletDetails();
                                   }
                                 } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
-                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
+                                    );
+                                  }
                                 } finally {
                                   setSheetState(() => isSubmitting = false);
                                 }
@@ -297,7 +299,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.history_rounded, size: 40, color: Colors.white.withOpacity(0.1)),
+                                    Icon(Icons.history_rounded, size: 40, color: Colors.white.withValues(alpha: 0.1)),
                                     const SizedBox(height: 12),
                                     const Text("No transactions recorded.", style: TextStyle(color: Color(0xFF64748B))),
                                   ],
@@ -315,9 +317,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                     margin: const EdgeInsets.only(bottom: 12),
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF161E2E).withOpacity(0.5),
+                                      color: const Color(0xFF161E2E).withValues(alpha: 0.5),
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.white.withOpacity(0.04)),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
                                     ),
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -326,8 +328,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                           children: [
                                             CircleAvatar(
                                               backgroundColor: isCredit
-                                                  ? Colors.green.withOpacity(0.12)
-                                                  : Colors.red.withOpacity(0.12),
+                                                  ? Colors.green.withValues(alpha: 0.12)
+                                                  : Colors.red.withValues(alpha: 0.12),
                                               child: Icon(
                                                 isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
                                                 color: isCredit ? Colors.greenAccent : Colors.redAccent,

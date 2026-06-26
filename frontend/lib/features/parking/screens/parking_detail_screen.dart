@@ -83,7 +83,7 @@ class _ParkingDetailScreenState extends ConsumerState<ParkingDetailScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.indigoAccent.withOpacity(0.12),
+                                  color: Colors.indigoAccent.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
@@ -160,14 +160,14 @@ class _ParkingDetailScreenState extends ConsumerState<ParkingDetailScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161E2E).withOpacity(0.4),
+                            color: const Color(0xFF161E2E).withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.05)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                           ),
                           child: Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: Colors.indigoAccent.withOpacity(0.3),
+                                backgroundColor: Colors.indigoAccent.withValues(alpha: 0.3),
                                 radius: 24,
                                 child: Text(
                                   space.ownerName.isNotEmpty ? space.ownerName[0].toUpperCase() : 'H',
@@ -211,7 +211,7 @@ class _ParkingDetailScreenState extends ConsumerState<ParkingDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               decoration: BoxDecoration(
                 color: const Color(0xFF161E2E),
-                border: Border(top: BorderSide(color: Colors.white.withOpacity(0.06))),
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Row(
@@ -258,10 +258,10 @@ class _ParkingDetailScreenState extends ConsumerState<ParkingDetailScreen> {
       height: 72,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isAvailable ? Colors.indigoAccent.withOpacity(0.12) : const Color(0xFF161E2E).withOpacity(0.3),
+        color: isAvailable ? Colors.indigoAccent.withValues(alpha: 0.12) : const Color(0xFF161E2E).withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isAvailable ? Colors.indigoAccent.withOpacity(0.2) : Colors.white.withOpacity(0.04),
+          color: isAvailable ? Colors.indigoAccent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.04),
         ),
       ),
       child: Column(

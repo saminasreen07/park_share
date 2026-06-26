@@ -73,11 +73,12 @@ class BookingState {
     BookingModel? currentBooking,
     bool? isLoading,
     String? errorMessage,
+    bool clearCurrentBooking = false,
   }) {
     return BookingState(
       driverBookings: driverBookings ?? this.driverBookings,
       ownerBookings: ownerBookings ?? this.ownerBookings,
-      currentBooking: currentBooking ?? this.currentBooking,
+      currentBooking: clearCurrentBooking ? null : (currentBooking ?? this.currentBooking),
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
     );

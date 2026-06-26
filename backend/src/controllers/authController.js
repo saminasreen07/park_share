@@ -76,9 +76,13 @@ export const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Hardcoded credentials for simulation and ease of deployment
-    const ADMIN_EMAIL = 'admin@parkshare.com';
-    const ADMIN_PASSWORD = 'adminpassword123';
+    // Admin credentials from environment variables
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      return res.status(500).json({ success: false, message: 'Admin credentials not configured on server' });
+    }
 
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       let adminUser = await User.findOne({ email: ADMIN_EMAIL });

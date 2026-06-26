@@ -108,7 +108,7 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.indigo.withOpacity(0.3),
+                        color: Colors.indigo.withValues(alpha: 0.3),
                         blurRadius: 15,
                         offset: const Offset(0, 8),
                       )
@@ -166,9 +166,9 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                       ? Container(
                           padding: const EdgeInsets.symmetric(vertical: 40),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161E2E).withOpacity(0.4),
+                            color: const Color(0xFF161E2E).withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
                           ),
                           child: const Column(
                             children: [
@@ -188,9 +188,9 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                               margin: const EdgeInsets.only(bottom: 16),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF161E2E).withOpacity(0.6),
+                                color: const Color(0xFF161E2E).withValues(alpha: 0.6),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white.withOpacity(0.06)),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                               ),
                               child: Row(
                                 children: [
@@ -261,9 +261,9 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                       ? Container(
                           padding: const EdgeInsets.symmetric(vertical: 40),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161E2E).withOpacity(0.4),
+                            color: const Color(0xFF161E2E).withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
                           ),
                           child: const Column(
                             children: [
@@ -283,9 +283,9 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                               margin: const EdgeInsets.only(bottom: 16),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF161E2E).withOpacity(0.6),
+                                color: const Color(0xFF161E2E).withValues(alpha: 0.6),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white.withOpacity(0.06)),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                               ),
                               child: Column(
                                 children: [
@@ -300,8 +300,8 @@ class _OwnerHomeScreenState extends ConsumerState<OwnerHomeScreen> {
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
                                           color: booking.status == 'confirmed' 
-                                              ? Colors.green.withOpacity(0.15) 
-                                              : Colors.blue.withOpacity(0.15),
+                                              ? Colors.green.withValues(alpha: 0.15) 
+                                              : Colors.blue.withValues(alpha: 0.15),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(

@@ -86,7 +86,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     final booking = bookingList.firstWhere((b) => b.id == widget.bookingId);
 
     // Destination target coordinates
-    final destination = LatLng(12.9716, 77.5946); 
+    const destination = LatLng(12.9716, 77.5946); 
 
     final Set<Marker> markers = {
       Marker(
@@ -137,9 +137,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF161E2E).withOpacity(0.9),
+                color: const Color(0xFF161E2E).withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               ),
               child: Row(
                 children: [
@@ -179,7 +179,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFF161E2E),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                border: Border(top: BorderSide(color: Colors.white.withOpacity(0.06))),
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

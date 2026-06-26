@@ -279,9 +279,20 @@ export const toggleAvailability = async (req, res) => {
 // Update space details
 export const updateSpace = async (req, res) => {
   try {
+    const { title, description, address, location, pricePerHour, totalSlots, features, images } = req.body;
+    const updateData = {};
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (address) updateData.address = address;
+    if (location) updateData.location = location;
+    if (pricePerHour) updateData.pricePerHour = pricePerHour;
+    if (totalSlots) updateData.totalSlots = totalSlots;
+    if (features) updateData.features = features;
+    if (images) updateData.images = images;
+
     const space = await ParkingSpace.findOneAndUpdate(
       { _id: req.params.id, ownerId: req.user._id },
-      req.body,
+      { $set: updateData },
       { new: true, runValidators: true }
     );
 

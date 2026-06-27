@@ -1,0 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #FF6B35;
+    --color-secondary: #004E89;
+    --color-tertiary: #A9ECE1;
+    --color-success: #00B050;
+    --color-warning: #FFB81C;
+    --color-error: #E81828;
+    --color-info: #0078D4;
+
+    --color-background: #F8FAFC;
+    --color-foreground: #0F172A;
+    --color-muted: #E2E8F0;
+    --color-muted-foreground: #64748B;
+    --color-accent: #F1F5F9;
+    --color-accent-foreground: #0F172A;
+    --color-card: #FFFFFF;
+    --color-card-foreground: #0F172A;
+    --color-border: #E2E8F0;
+  }
+
+  [data-theme="dark"] {
+    --color-background: #090D16;
+    --color-foreground: #F8FAFC;
+    --color-muted: #1E293B;
+    --color-muted-foreground: #94A3B8;
+    --color-accent: #0F172A;
+    --color-accent-foreground: #F8FAFC;
+    --color-card: #131B2E;
+    --color-card-foreground: #F8FAFC;
+    --color-border: #1E293B;
+  }
+
+  body {
+    @apply antialiased font-sans transition-colors duration-200;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+}
+
+@layer components {
+  /* Glassmorphism Styles */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+  }
+
+  [data-theme="dark"] .glass-card {
+    background: rgba(19, 27, 46, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  .glass-nav {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  [data-theme="dark"] .glass-nav {
+    background: rgba(9, 13, 22, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Interactive Elements */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-white bg-primary hover:bg-[#E55A2B] active:scale-95 transition-all duration-150 shadow-md shadow-[0_4px_12px_rgba(255,107,53,0.2)] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-white bg-secondary hover:bg-[#003D6D] active:scale-95 transition-all duration-150 shadow-md shadow-[0_4px_12px_rgba(0,78,137,0.2)] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold border-2 border-slate-200 dark:border-slate-800 bg-transparent text-foreground hover:bg-slate-100 dark:hover:bg-slate-900 active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-primary dark:focus:border-primary text-foreground transition-all duration-200 placeholder:text-slate-400 dark:placeholder:text-slate-500;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.2);
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.4);
+  }
+}
+
+/* Animations Helpers */
+.animate-delay-100 {
+  animation-delay: 100ms;
+}
+
+.animate-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animate-delay-300 {
+  animation-delay: 300ms;
+}

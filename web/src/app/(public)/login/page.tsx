@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { supabase } from "@/lib/supabase-client";
-import { Car, Shield, User, Lock, Mail, Phone, Key, ArrowRight } from "lucide-react";
+import { Car, User, Lock, Mail, Phone, Key, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
 
 function LoginForm() {
@@ -12,8 +12,8 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
 
-  const { fetchCurrentUser, user, loginSandbox } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<"driver" | "owner" | "admin">("driver");
+  const { fetchCurrentUser, user } = useAuthStore();
+  const [activeTab, setActiveTab] = useState<"driver" | "owner">("driver");
   const [method, setMethod] = useState<"phone" | "email" | "password">("phone");
   
   // Input fields
@@ -25,33 +25,101 @@ function LoginForm() {
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Resend OTP Countdown states
+  const [countdown, setCountdown] = useState(30);
+  const [canResend, setCanResend] = useState(false);
+
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchCurrentUser().then((profile) => {
-          if (profile) {
-            redirectUser(profile.role);
+    let timer: NodeJS.Timeout;
+    if (otpSent && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            clearInterval(timer);
+            return 0;
           }
+          return prev - 1;
         });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [otpSent, countdown]);
+
+  useEffect(() => {
+    // Check if user is already logged in or returning from OAuth
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const storedRole = localStorage.getItem("parkshare_google_role") as "driver" | "owner" | null;
+        let profile = await fetchCurrentUser();
+        
+        if (profile) {
+          if (storedRole && profile.role !== storedRole) {
+            // Update role in DB to match what the user selected before starting Google Sign-In
+            const { error } = await supabase
+              .from("profiles")
+              .update({ role: storedRole })
+              .eq("id", profile.id);
+            if (!error) {
+              profile.role = storedRole;
+              useAuthStore.getState().setUser(profile);
+            }
+          }
+          localStorage.removeItem("parkshare_google_role");
+          redirectUser(profile);
+        }
       }
     });
   }, []);
 
-  const redirectUser = (role: string) => {
-    if (role === "admin") {
-      router.push("/admin/dashboard");
-    } else if (role === "owner") {
+  const redirectUser = async (profile: any) => {
+    if (!profile) return;
+
+    if (activeTab === "owner") {
+      if (profile.role !== "owner") {
+        try {
+          const { error } = await supabase
+            .from("profiles")
+            .update({ role: "owner", is_verified: true })
+            .eq("id", profile.id);
+          
+          if (!error) {
+            profile.role = "owner";
+            profile.is_verified = true;
+            useAuthStore.getState().setUser(profile);
+            
+            // Set cookie manually
+            if (typeof document !== "undefined") {
+              const secure = typeof window !== "undefined" && window.isSecureContext ? "; secure" : "";
+              document.cookie = `parkshare_role=owner; path=/; max-age=604800${secure}; samesite=lax`;
+            }
+          }
+        } catch (dbErr) {
+          console.error("Failed to auto-upgrade user role to owner:", dbErr);
+        }
+      }
       router.push("/owner/dashboard");
     } else {
-      router.push(redirect === "/" ? "/search" : redirect);
+      if (profile.role === "owner") {
+        router.push("/owner/dashboard");
+      } else {
+        router.push(redirect === "/" ? "/search" : redirect);
+      }
     }
+  };
+
+  const resetOtpState = () => {
+    setOtpSent(false);
+    setCountdown(30);
+    setCanResend(false);
+    setOtp("");
   };
 
   // Google OAuth Login
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
+      localStorage.setItem("parkshare_google_role", activeTab);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -67,7 +135,7 @@ function LoginForm() {
 
   // Submit Phone for OTP
   const handlePhoneSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!phone || phone.length < 10) {
       toast.error("Please enter a valid 10-digit phone number");
       return;
@@ -83,9 +151,16 @@ function LoginForm() {
       });
       if (error) throw error;
       setOtpSent(true);
+      setCountdown(30);
+      setCanResend(false);
       toast.success("Verification OTP sent to " + phone);
     } catch (err: any) {
-      toast.error(err.message || "Failed to send OTP");
+      const msg = err.message || "";
+      if (msg.includes("SMS") || msg.includes("provider") || msg.includes("Twilio") || msg.includes("not configured")) {
+        toast.error("Supabase SMS provider is not configured. Please contact the administrator.", { duration: 6000 });
+      } else {
+        toast.error(msg || "Failed to send OTP");
+      }
     } finally {
       setLoading(false);
     }
@@ -93,7 +168,7 @@ function LoginForm() {
 
   // Submit Email for OTP
   const handleEmailOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!email) {
       toast.error("Please enter a valid email address");
       return;
@@ -108,6 +183,8 @@ function LoginForm() {
       });
       if (error) throw error;
       setOtpSent(true);
+      setCountdown(30);
+      setCanResend(false);
       toast.success("Verification link or code sent to your email!");
     } catch (err: any) {
       toast.error(err.message || "Failed to send email OTP");
@@ -147,7 +224,7 @@ function LoginForm() {
       // Load user profile and redirect
       const profile = await fetchCurrentUser();
       if (profile && profile.role) {
-        redirectUser(profile.role);
+        redirectUser(profile);
       } else {
         // First-time user, redirect to onboarding/signup role select
         router.push(`/signup?role=${activeTab}`);
@@ -159,7 +236,7 @@ function LoginForm() {
     }
   };
 
-  // Email/Password login (primarily for Admin or pre-existing profiles)
+  // Email/Password login for users with pre-existing profiles
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -177,7 +254,7 @@ function LoginForm() {
       toast.success("Logged in successfully!");
       const profile = await fetchCurrentUser();
       if (profile) {
-        redirectUser(profile.role);
+        redirectUser(profile);
       }
     } catch (err: any) {
       toast.error(err.message || "Invalid email or password");
@@ -205,7 +282,7 @@ function LoginForm() {
         <button
           onClick={() => {
             setActiveTab("driver");
-            setOtpSent(false);
+            resetOtpState();
           }}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
             activeTab === "driver"
@@ -219,7 +296,7 @@ function LoginForm() {
         <button
           onClick={() => {
             setActiveTab("owner");
-            setOtpSent(false);
+            resetOtpState();
           }}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
             activeTab === "owner"
@@ -228,32 +305,17 @@ function LoginForm() {
           }`}
         >
           <User className="w-4 h-4" />
-          Owner
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("admin");
-            setOtpSent(false);
-            setMethod("password");
-          }}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
-            activeTab === "admin"
-              ? "bg-slate-700 text-white shadow-md"
-              : "text-slate-400 hover:text-white"
-          }`}
-        >
-          <Shield className="w-4 h-4" />
-          Admin
+          Host / Owner
         </button>
       </div>
 
-      {/* Method Switcher (for non-admins) */}
-      {activeTab !== "admin" && (
+      {/* Method Switcher */}
+      {(
         <div className="flex justify-center gap-4 text-xs font-bold text-slate-400 mb-6 uppercase tracking-wider">
           <button
             onClick={() => {
               setMethod("phone");
-              setOtpSent(false);
+              resetOtpState();
             }}
             className={`pb-1 border-b-2 transition-all ${
               method === "phone" ? "border-primary text-white font-extrabold" : "border-transparent"
@@ -264,7 +326,7 @@ function LoginForm() {
           <button
             onClick={() => {
               setMethod("email");
-              setOtpSent(false);
+              resetOtpState();
             }}
             className={`pb-1 border-b-2 transition-all ${
               method === "email" ? "border-primary text-white font-extrabold" : "border-transparent"
@@ -275,7 +337,7 @@ function LoginForm() {
           <button
             onClick={() => {
               setMethod("password");
-              setOtpSent(false);
+              resetOtpState();
             }}
             className={`pb-1 border-b-2 transition-all ${
               method === "password" ? "border-primary text-white font-extrabold" : "border-transparent"
@@ -289,7 +351,7 @@ function LoginForm() {
       {/* OTP Forms */}
       {!otpSent ? (
         <>
-          {method === "phone" && activeTab !== "admin" && (
+          {method === "phone" && (
             <form onSubmit={handlePhoneSubmit} className="space-y-4">
               <div>
                 <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
@@ -322,7 +384,7 @@ function LoginForm() {
             </form>
           )}
 
-          {method === "email" && activeTab !== "admin" && (
+          {method === "email" && (
             <form onSubmit={handleEmailOtpSubmit} className="space-y-4">
               <div>
                 <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
@@ -444,7 +506,7 @@ function LoginForm() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setOtpSent(false)}
+              onClick={() => resetOtpState()}
               className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold rounded-xl transition"
               disabled={loading}
             >
@@ -458,11 +520,33 @@ function LoginForm() {
               Verify OTP
             </button>
           </div>
+          <div className="pt-2 text-center">
+            {canResend ? (
+              <button
+                type="button"
+                onClick={async (e) => {
+                  if (method === "phone") {
+                    await handlePhoneSubmit(e);
+                  } else {
+                    await handleEmailOtpSubmit(e);
+                  }
+                }}
+                className="text-xs text-primary font-bold hover:underline"
+                disabled={loading}
+              >
+                Resend OTP Code
+              </button>
+            ) : (
+              <span className="text-xs text-slate-400">
+                Resend code in <span className="font-bold text-slate-300">{countdown}s</span>
+              </span>
+            )}
+          </div>
         </form>
       )}
 
       {/* Social Logins */}
-      {!otpSent && activeTab !== "admin" && (
+      {!otpSent && (
         <>
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
@@ -487,48 +571,6 @@ function LoginForm() {
           </button>
         </>
       )}
-
-      {/* Sandbox Developer Sign-In */}
-      <div className="relative mt-8 pt-6 border-t border-slate-800/80">
-        <h4 className="text-[10px] text-primary font-extrabold uppercase tracking-widest text-center mb-3">
-          Sandbox Developer Quick Access
-        </h4>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              loginSandbox("driver");
-              toast.success("Signed in as Mock Driver!");
-              redirectUser("driver");
-            }}
-            className="py-2.5 bg-slate-900/60 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-[10px] uppercase border border-slate-800 transition active:scale-[0.98] text-center"
-          >
-            Driver
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              loginSandbox("owner");
-              toast.success("Signed in as Mock Owner!");
-              redirectUser("owner");
-            }}
-            className="py-2.5 bg-slate-900/60 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-[10px] uppercase border border-slate-800 transition active:scale-[0.98] text-center"
-          >
-            Owner
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              loginSandbox("admin");
-              toast.success("Signed in as Mock Admin!");
-              redirectUser("admin");
-            }}
-            className="py-2.5 bg-slate-900/60 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-[10px] uppercase border border-slate-800 transition active:scale-[0.98] text-center"
-          >
-            Admin
-          </button>
-        </div>
-      </div>
 
       <p className="text-center text-xs text-slate-500 mt-6">
         By signing in, you agree to our Terms of Service & Privacy Policy.

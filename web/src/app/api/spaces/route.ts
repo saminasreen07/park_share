@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseUserClient } from "@/lib/supabase-api";
+import { getSupabaseUserClient, getSupabaseAdminClient } from "@/lib/supabase-api";
 
 // Haversine Distance Calculator
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -23,10 +23,10 @@ export async function GET(request: NextRequest) {
   const latitude = parseFloat(searchParams.get("latitude") || "");
   const longitude = parseFloat(searchParams.get("longitude") || "");
   
-  const supabase = getSupabaseUserClient(request);
+  const admin = getSupabaseAdminClient();
 
   try {
-    let dbQuery = supabase
+    let dbQuery = admin
       .from("parking_spaces")
       .select("*, ownerId:profiles(name, rating)");
 
@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
       },
       status: s.status,
       averageRating: Number(s.average_rating || 0.0),
+      rating: Number(s.average_rating || 0.0),
       reviewCount: s.review_count,
       ownerId: s.ownerId ? {
         name: s.ownerId.name,
@@ -138,8 +139,8 @@ export async function POST(request: NextRequest) {
       instructions
     } = body;
 
-    const lat = location?.coordinates?.[1] || 0;
-    const lng = location?.coordinates?.[0] || 0;
+    const lat = location?.coordinates?.[1] !== undefined ? location.coordinates[1] : (body.latitude || 0);
+    const lng = location?.coordinates?.[0] !== undefined ? location.coordinates[0] : (body.longitude || 0);
 
     const newSpace = {
       owner_id: user.id,
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
       is_covered: features?.isCovered || false,
       has_ev_charger: features?.hasEVCharger || false,
       has_cctv: features?.hasCCTV || false,
-      is_security_guarded: features?.isSecurityGuarded || false,
+      is_security_guarded: features?.isSecurityGuarded || features?.hasSecurity || false,
       has_valet: features?.hasValet || false,
       vehicle_types: vehicleTypes || ["4-wheeler"],
       amenities: amenities || [],
@@ -171,7 +172,8 @@ export async function POST(request: NextRequest) {
       status: "pending" // Auto require admin approval
     };
 
-    const { data: space, error: dbError } = await supabase
+    const admin = getSupabaseAdminClient();
+    const { data: space, error: dbError } = await admin
       .from("parking_spaces")
       .insert(newSpace)
       .select()

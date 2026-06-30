@@ -10,18 +10,21 @@ import toast from "react-hot-toast";
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user, logout, fetchCurrentUser } = useAuthStore();
   
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
+    // Fetch user profile session
+    fetchCurrentUser();
+
     // Sync theme
     const currentTheme = document.documentElement.getAttribute("data-theme") as "light" | "dark";
     if (currentTheme) {
       setTheme(currentTheme);
     }
-  }, []);
+  }, [fetchCurrentUser]);
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -40,6 +43,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     { label: "My Listings", href: "/owner/listings", icon: Car },
     { label: "Bookings List", href: "/owner/bookings", icon: Landmark },
     { label: "Earnings Wallet", href: "/owner/earnings", icon: Bank },
+    { label: "Profile Settings", href: "/profile/edit", icon: Settings },
   ];
 
   return (

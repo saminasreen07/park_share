@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseUserClient } from "@/lib/supabase-api";
+import { getSupabaseUserClient, getSupabaseAdminClient } from "@/lib/supabase-api";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = getSupabaseUserClient(request);
+  const admin = getSupabaseAdminClient();
   const { id } = params;
 
   try {
-    const { data: space, error } = await supabase
+    const { data: space, error } = await admin
       .from("parking_spaces")
       .select("*, ownerId:profiles(name, rating, phone, email)")
       .eq("id", id)
@@ -46,6 +46,7 @@ export async function GET(
       },
       status: space.status,
       averageRating: Number(space.average_rating || 0.0),
+      rating: Number(space.average_rating || 0.0),
       reviewCount: space.review_count,
       vehicleTypes: space.vehicle_types || ["4-wheeler"],
       amenities: space.amenities || [],
@@ -147,7 +148,8 @@ export async function PUT(
       if (availability.daysOfWeek !== undefined) updateData.days_of_week = availability.daysOfWeek;
     }
 
-    const { data: updatedSpace, error: dbError } = await supabase
+    const admin = getSupabaseAdminClient();
+    const { data: updatedSpace, error: dbError } = await admin
       .from("parking_spaces")
       .update(updateData)
       .eq("id", id)
@@ -171,6 +173,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const supabase = getSupabaseUserClient(request);
+  const admin = getSupabaseAdminClient();
   const { id } = params;
 
   try {
@@ -179,7 +182,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const { error: dbError } = await supabase
+    const { error: dbError } = await admin
       .from("parking_spaces")
       .delete()
       .eq("id", id);

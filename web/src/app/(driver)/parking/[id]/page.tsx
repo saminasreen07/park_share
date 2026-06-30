@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
-import { ShieldCheck, MapPin, BatteryCharging, Star, Shield, Car, Check, Calendar, Clock, ChevronRight, User } from "lucide-react";
+import { ShieldCheck, MapPin, BatteryCharging, Star, Shield, Car, Check, Calendar, Clock, ChevronRight, User, Heart } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Review {
@@ -25,7 +25,8 @@ interface ParkingSpace {
   pricePerHour: number;
   totalSlots: number;
   availableSlots: number;
-  rating: number;
+  rating?: number;
+  averageRating?: number;
   images: string[];
   features: {
     hasEVCharger?: boolean;
@@ -37,7 +38,7 @@ interface ParkingSpace {
   ownerId?: {
     _id: string;
     name: string;
-    rating: number;
+    rating?: number;
     phone: string;
   };
 }
@@ -55,6 +56,82 @@ export default function ParkingDetailPage() {
   const [startTime, setStartTime] = useState("");
   const [hours, setHours] = useState(1);
 
+  // Save/favorite state
+  const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    const checkSavedState = async () => {
+      // Check local state first
+      if (typeof window !== "undefined") {
+        try {
+          const localFavs = JSON.parse(localStorage.getItem("parkshare_local_favorites") || "[]");
+          if (localFavs.some((f: any) => f._id === id)) {
+            setIsSaved(true);
+            return;
+          }
+        } catch (e) {}
+      }
+
+      try {
+        const response = await apiClient.get("/favorites");
+        if (response.data && response.data.success) {
+          const isFav = response.data.data.some((fav: any) => fav._id === id);
+          setIsSaved(isFav);
+        }
+      } catch (err) {
+        console.warn("Failed to check saved state:", err);
+      }
+    };
+    checkSavedState();
+  }, [id]);
+
+  const toggleSave = async () => {
+    // Sync with localStorage
+    if (typeof window !== "undefined") {
+      try {
+        const localFavs = JSON.parse(localStorage.getItem("parkshare_local_favorites") || "[]");
+        if (isSaved) {
+          const nextFavs = localFavs.filter((f: any) => f._id !== id);
+          localStorage.setItem("parkshare_local_favorites", JSON.stringify(nextFavs));
+        } else {
+          if (!localFavs.some((f: any) => f._id === id)) {
+            localFavs.push({
+              _id: space?._id || id,
+              title: space?.title || "Covered Parking – Chennai Central",
+              address: space?.address || "Park Town, Chennai, Tamil Nadu",
+              pricePerHour: space?.pricePerHour || 40,
+              rating: space?.rating || 4.8,
+              images: space?.images || ["https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=400"]
+            });
+            localStorage.setItem("parkshare_local_favorites", JSON.stringify(localFavs));
+          }
+        }
+      } catch (e) {
+        console.error("Local favorites storage error:", e);
+      }
+    }
+
+    try {
+      if (isSaved) {
+        const response = await apiClient.delete(`/favorites?spaceId=${id}`);
+        if (response.data && response.data.success) {
+          setIsSaved(false);
+          toast.success("Removed from saved spots");
+        }
+      } else {
+        const response = await apiClient.post("/favorites", { spaceId: id });
+        if (response.data && response.data.success) {
+          setIsSaved(true);
+          toast.success("Saved to your favorites!");
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to toggle favorite via API, updating UI locally:", err);
+      setIsSaved(!isSaved);
+      toast.success(!isSaved ? "Saved to your favorites!" : "Removed from saved spots");
+    }
+  };
+
   useEffect(() => {
     fetchSpaceDetails();
   }, [id]);
@@ -66,37 +143,58 @@ export default function ParkingDetailPage() {
       if (response.data && response.data.success) {
         setSpace(response.data.data);
       }
-      
-      // Fetch reviews
+            // Fetch reviews
       const reviewsResponse = await apiClient.get(`/reviews/space/${id}`);
       if (reviewsResponse.data && reviewsResponse.data.success) {
         setReviews(reviewsResponse.data.data);
       }
     } catch (err) {
       console.warn("Failed to load details from server, using fallback details:", err);
-      // Fallback detail seed
-      setSpace({
-        _id: Array.isArray(id) ? id[0] : id || "65f80b12a3d0ef0000000001",
-        title: "Premium Covered Slot Near Metro",
-        description: "Secure private parking slot located in a safe residential community just 2 minutes walking distance from the metro station. Equipped with 24x7 CCTV cameras, physical guard surveillance, and a dedicated EV charging station. Ideal for daily commuters, long term stays, or weekend travelers.",
-        address: "Sector 21 Metro Station, Gurugram, Haryana - 122002",
-        pricePerHour: 40,
-        totalSlots: 5,
-        availableSlots: 3,
-        rating: 4.8,
-        images: [
-          "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800",
-          "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=800",
-          "https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=800",
-        ],
-        features: { hasEVCharger: true, hasCCTV: true, isCovered: true, hasSecurity: true },
-        ownerId: {
-          _id: "owner-1234",
-          name: "Rajesh Kumar",
-          rating: 4.7,
-          phone: "+919876543210",
-        },
-      });
+      
+      const mockList = [
+        { _id: "tn001", title: "Chennai Central Railway Station Parking", address: "Park Town, Chennai - 600003", pricePerHour: 30, rating: 4.5, totalSlots: 50, availableSlots: 30, location: { coordinates: [80.2707, 13.0827] }, features: { hasEVCharger: false, hasCCTV: true, isCovered: false, hasSecurity: true }, ownerId: { _id: "owner-cmrl", name: "CMRL Authority", rating: 4.5, phone: "+919999999991" }, description: "Convenient transit parking slot located directly at Chennai Central Railway Station. Safe, monitored, and open 24/7." },
+        { _id: "tn002", title: "T. Nagar Pondy Bazaar Multi-Level Parking", address: "Pondy Bazaar, T. Nagar, Chennai - 600017", pricePerHour: 40, rating: 4.8, totalSlots: 120, availableSlots: 80, location: { coordinates: [80.2341, 13.0418] }, features: { hasEVCharger: true, hasCCTV: true, isCovered: true, hasSecurity: true }, ownerId: { _id: "owner-priya", name: "Priya Lakshmi", rating: 4.6, phone: "+919999999992" }, description: "Premium covered multi-level parking in the heart of T. Nagar shopping district. EV charging available." },
+        { _id: "tn003", title: "Anna Nagar East Covered Parking", address: "Anna Nagar East, Chennai - 600102", pricePerHour: 35, rating: 4.7, totalSlots: 30, availableSlots: 18, location: { coordinates: [80.2101, 13.0858] }, features: { hasEVCharger: false, hasCCTV: true, isCovered: true, hasSecurity: true }, ownerId: { _id: "owner-suresh", name: "Suresh Narayanan", rating: 4.9, phone: "+919888888888" }, description: "Secure, covered residential style parking lot located in Anna Nagar East. Monitored with CCTV." },
+        { _id: "tn004", title: "Express Avenue Mall Basement Parking", address: "Royapettah, Chennai - 600002", pricePerHour: 50, rating: 4.9, totalSlots: 200, availableSlots: 120, location: { coordinates: [80.2619, 13.0569] }, features: { hasEVCharger: true, hasCCTV: true, isCovered: true, hasSecurity: true }, ownerId: { _id: "owner-express", name: "Phoenix Group", rating: 4.8, phone: "+919999999994" }, description: "Basement mall parking slot in Express Avenue. Fully monitored, secure and clean." }
+      ];
+
+      const spaceIdStr = Array.isArray(id) ? id[0] : id;
+      const foundMock = mockList.find(item => item._id === spaceIdStr);
+
+      if (foundMock) {
+        setSpace({
+          ...foundMock,
+          images: [
+            "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800",
+            "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=800",
+            "https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=800",
+          ]
+        });
+      } else {
+        // Fallback detail seed
+        setSpace({
+          _id: spaceIdStr || "65f80b12a3d0ef0000000001",
+          title: "Premium Covered Slot Near Metro",
+          description: "Secure private parking slot located in a safe residential community just 2 minutes walking distance from the metro station. Equipped with 24x7 CCTV cameras, physical guard surveillance, and a dedicated EV charging station. Ideal for daily commuters, long term stays, or weekend travelers.",
+          address: "Sector 21 Metro Station, Gurugram, Haryana - 122002",
+          pricePerHour: 40,
+          totalSlots: 5,
+          availableSlots: 3,
+          rating: 4.8,
+          images: [
+            "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800",
+            "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=800",
+            "https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=800",
+          ],
+          features: { hasEVCharger: true, hasCCTV: true, isCovered: true, hasSecurity: true },
+          ownerId: {
+            _id: "owner-1234",
+            name: "Rajesh Kumar",
+            rating: 4.7,
+            phone: "+919876543210",
+          },
+        });
+      }
 
       setReviews([
         {
@@ -132,6 +230,7 @@ export default function ParkingDetailPage() {
       price: (space?.pricePerHour || 40).toString(),
     });
     
+    toast.success("Booking initiated! Let's select your vehicle...");
     router.push(`/booking/${id}/new?${query.toString()}`);
   };
 
@@ -185,7 +284,7 @@ export default function ParkingDetailPage() {
           />
           <span className="absolute top-4 right-4 px-3 py-1 bg-slate-900/80 backdrop-blur-sm rounded-lg text-xs font-bold text-white flex items-center gap-1.5 shadow">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            {space.rating.toFixed(1)} ({reviews.length} reviews)
+            {(space.rating ?? space.averageRating ?? 5.0).toFixed(1)} ({reviews.length} reviews)
           </span>
         </div>
 
@@ -210,7 +309,16 @@ export default function ParkingDetailPage() {
         {/* Left side details */}
         <div className="md:col-span-2 space-y-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{space.title}</h1>
+            <div className="flex justify-between items-start gap-4">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{space.title}</h1>
+              <button
+                onClick={toggleSave}
+                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131B2E] shadow-sm text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition flex-shrink-0"
+                title={isSaved ? "Remove from saved spots" : "Save to favorites"}
+              >
+                <Heart className={`w-5 h-5 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+              </button>
+            </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1.5 flex items-center gap-1.5 font-semibold">
               <MapPin className="w-4.5 h-4.5 text-primary flex-shrink-0" />
               {space.address}
@@ -230,7 +338,7 @@ export default function ParkingDetailPage() {
                 <span className="font-bold text-sm text-slate-800 dark:text-white">{space.ownerId?.name || "System Host"}</span>
               </div>
             </div>
-            {space.ownerId?.rating && (
+            {space.ownerId?.rating !== undefined && (
               <span className="px-2.5 py-1 rounded-lg bg-yellow-500/10 text-yellow-500 text-xs font-bold flex items-center gap-1">
                 {space.ownerId.rating.toFixed(1)} ★ Host
               </span>
@@ -323,13 +431,19 @@ export default function ParkingDetailPage() {
                   Select Booking Date
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3.5 top-3 text-slate-400 w-4 h-4" />
+                  <Calendar className="absolute left-3.5 top-3 text-slate-400 w-4 h-4 pointer-events-none" />
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     min={new Date().toISOString().split("T")[0]}
-                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-700/60 rounded-xl outline-none focus:border-primary text-xs font-semibold text-foreground"
+                    onClick={(e) => {
+                      try {
+                        (e.target as any).showPicker();
+                      } catch (err) {}
+                    }}
+                    style={{ colorScheme: 'dark' }}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-700/60 rounded-xl outline-none focus:border-primary text-xs font-semibold text-slate-900 dark:text-slate-100 cursor-pointer"
                   />
                 </div>
               </div>
@@ -339,12 +453,18 @@ export default function ParkingDetailPage() {
                   Arrival Time
                 </label>
                 <div className="relative">
-                  <Clock className="absolute left-3.5 top-3 text-slate-400 w-4 h-4" />
+                  <Clock className="absolute left-3.5 top-3 text-slate-400 w-4 h-4 pointer-events-none" />
                   <input
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-700/60 rounded-xl outline-none focus:border-primary text-xs font-semibold text-foreground"
+                    onClick={(e) => {
+                      try {
+                        (e.target as any).showPicker();
+                      } catch (err) {}
+                    }}
+                    style={{ colorScheme: 'dark' }}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-700/60 rounded-xl outline-none focus:border-primary text-xs font-semibold text-slate-900 dark:text-slate-100 cursor-pointer"
                   />
                 </div>
               </div>

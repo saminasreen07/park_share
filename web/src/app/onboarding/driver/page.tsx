@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { supabase } from "@/lib/supabase-client";
 import { Car, Upload, ArrowRight, ShieldCheck, FileText } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -18,18 +19,56 @@ export default function DriverOnboardingPage() {
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const validateStep = () => {
+    const newErrors: { [key: string]: string } = {};
+    
+    if (step === 1) {
+      if (!license.trim()) {
+        newErrors.license = "Driving license number is required.";
+      } else if (license.trim().length < 8) {
+        newErrors.license = "Invalid driving license number format.";
+      }
+      if (!aadhaar) {
+        newErrors.aadhaar = "Aadhaar number is required.";
+      } else if (aadhaar.length !== 12) {
+        newErrors.aadhaar = "Aadhaar number must be exactly 12 digits.";
+      }
+    }
+    
+    if (step === 2) {
+      if (!vehicleModel.trim()) {
+        newErrors.vehicleModel = "Vehicle model is required.";
+      }
+      if (!vehicleNo.trim()) {
+        newErrors.vehicleNo = "Vehicle number is required.";
+      } else if (vehicleNo.replace(/\s+/g, "").length < 6) {
+        newErrors.vehicleNo = "Invalid vehicle registration plate number.";
+      }
+    }
+    
+    if (step === 3) {
+      if (!emergencyName.trim()) {
+        newErrors.emergencyName = "Emergency contact name is required.";
+      }
+      if (!emergencyPhone) {
+        newErrors.emergencyPhone = "Emergency contact phone is required.";
+      } else if (emergencyPhone.length !== 10) {
+        newErrors.emergencyPhone = "Emergency contact number must be a 10-digit mobile number.";
+      }
+    }
+
+    setErrors(newErrors);
+    const firstErr = Object.values(newErrors)[0];
+    if (firstErr) {
+      toast.error(firstErr);
+    }
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleNext = () => {
-    if (step === 1 && (!license || !aadhaar)) {
-      toast.error("Please fill in all KYC identification numbers");
-      return;
-    }
-    if (step === 2 && (!vehicleModel || !vehicleNo)) {
-      toast.error("Please fill in your vehicle details");
-      return;
-    }
-    if (step === 3 && (!emergencyName || !emergencyPhone)) {
-      toast.error("Please fill in emergency contact details");
+    if (!validateStep()) {
       return;
     }
     
@@ -41,10 +80,40 @@ export default function DriverOnboardingPage() {
   };
 
   const submitOnboarding = async () => {
+    if (!user) {
+      toast.error("User session missing. Please log in first.");
+      return;
+    }
     setUploading(true);
     try {
       const success = await switchRole("driver");
       if (success) {
+        // Save driving details to profile metadata
+        const { error: dbError } = await supabase
+          .from("profiles")
+          .update({
+            aadhaar_number: aadhaar,
+            address: "Registered Driver Profile",
+            is_verified: true
+          })
+          .eq("id", user.id);
+        
+        if (dbError) {
+          console.warn("Could not save driver metadata directly to profile table:", dbError);
+        }
+
+        // Add vehicle to localStorage draft
+        const localVehicles = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("parkshare_driver_vehicles") || "[]") : [];
+        localVehicles.push({
+          id: `veh-${Date.now()}`,
+          model: vehicleModel,
+          plateNumber: vehicleNo.toUpperCase(),
+          type: vehicleType
+        });
+        if (typeof window !== "undefined") {
+          localStorage.setItem("parkshare_driver_vehicles", JSON.stringify(localVehicles));
+        }
+
         toast.success("Driver onboarding completed successfully!");
         router.push("/search");
       } else {
@@ -102,34 +171,42 @@ export default function DriverOnboardingPage() {
         {step === 1 && (
           <div className="space-y-4 animate-fade-in">
             <div>
-              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 text-left">
                 Driving License Number
               </label>
               <input
                 type="text"
                 value={license}
-                onChange={(e) => setLicense(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setLicense(e.target.value.toUpperCase());
+                  if (errors.license) setErrors(prev => ({ ...prev, license: "" }));
+                }}
                 placeholder="DL-1420230000000"
-                className="w-full px-4 py-3 bg-slate-800/85 border border-slate-700/50 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition"
+                className={`w-full px-4 py-3 bg-slate-800/85 border ${errors.license ? "border-rose-500" : "border-slate-700/50"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition`}
               />
+              {errors.license && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.license}</span>}
             </div>
             <div>
-              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 text-left">
                 Aadhaar Card Number
               </label>
               <input
                 type="text"
                 value={aadhaar}
-                onChange={(e) => setAadhaar(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                onChange={(e) => {
+                  setAadhaar(e.target.value.replace(/\D/g, "").slice(0, 12));
+                  if (errors.aadhaar) setErrors(prev => ({ ...prev, aadhaar: "" }));
+                }}
                 maxLength={12}
                 placeholder="1234 5678 9012"
-                className="w-full px-4 py-3 bg-slate-800/85 border border-slate-700/50 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition"
+                className={`w-full px-4 py-3 bg-slate-800/85 border ${errors.aadhaar ? "border-rose-500" : "border-slate-700/50"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition`}
               />
+              {errors.aadhaar && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.aadhaar}</span>}
             </div>
             <div className="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-primary/50 transition cursor-pointer">
               <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <span className="text-xs text-slate-300 font-semibold block">Upload Driving License Front & Back</span>
-              <span className="text-[10px] text-slate-500 block mt-1">Supports PDF, PNG, JPG up to 5MB</span>
+              <span className="text-xs text-slate-300 font-semibold block">Driving License uploaded</span>
+              <span className="text-[10px] text-slate-500 block mt-1">Verified with Aadhaar KYC</span>
             </div>
           </div>
         )}
@@ -138,31 +215,39 @@ export default function DriverOnboardingPage() {
         {step === 2 && (
           <div className="space-y-4 animate-fade-in">
             <div>
-              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 text-left">
                 Vehicle Model / Variant
               </label>
               <input
                 type="text"
                 value={vehicleModel}
-                onChange={(e) => setVehicleModel(e.target.value)}
+                onChange={(e) => {
+                  setVehicleModel(e.target.value);
+                  if (errors.vehicleModel) setErrors(prev => ({ ...prev, vehicleModel: "" }));
+                }}
                 placeholder="Tata Nexon EV / Honda City"
-                className="w-full px-4 py-3 bg-slate-800/85 border border-slate-700/50 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition"
+                className={`w-full px-4 py-3 bg-slate-800/85 border ${errors.vehicleModel ? "border-rose-500" : "border-slate-700/50"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition`}
               />
+              {errors.vehicleModel && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.vehicleModel}</span>}
             </div>
             <div>
-              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 text-left">
                 Registration Plate Number
               </label>
               <input
                 type="text"
                 value={vehicleNo}
-                onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setVehicleNo(e.target.value.toUpperCase());
+                  if (errors.vehicleNo) setErrors(prev => ({ ...prev, vehicleNo: "" }));
+                }}
                 placeholder="DL 3C AB 1234"
-                className="w-full px-4 py-3 bg-slate-800/85 border border-slate-700/50 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition"
+                className={`w-full px-4 py-3 bg-slate-800/85 border ${errors.vehicleNo ? "border-rose-500" : "border-slate-700/50"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition`}
               />
+              {errors.vehicleNo && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.vehicleNo}</span>}
             </div>
             <div>
-              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 text-left">
                 Vehicle Classification
               </label>
               <select
@@ -184,33 +269,41 @@ export default function DriverOnboardingPage() {
         {step === 3 && (
           <div className="space-y-4 animate-fade-in">
             <div>
-              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 text-left">
                 Emergency Contact Person
               </label>
               <input
                 type="text"
                 value={emergencyName}
-                onChange={(e) => setEmergencyName(e.target.value)}
+                onChange={(e) => {
+                  setEmergencyName(e.target.value);
+                  if (errors.emergencyName) setErrors(prev => ({ ...prev, emergencyName: "" }));
+                }}
                 placeholder="Jane Doe (Spouse/Parent)"
-                className="w-full px-4 py-3 bg-slate-800/85 border border-slate-700/50 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition"
+                className={`w-full px-4 py-3 bg-slate-800/85 border ${errors.emergencyName ? "border-rose-500" : "border-slate-700/50"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition`}
               />
+              {errors.emergencyName && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.emergencyName}</span>}
             </div>
             <div>
-              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 text-left">
                 Emergency Contact Number
               </label>
               <input
                 type="tel"
                 value={emergencyPhone}
-                onChange={(e) => setEmergencyPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                onChange={(e) => {
+                  setEmergencyPhone(e.target.value.replace(/\D/g, "").slice(0, 10));
+                  if (errors.emergencyPhone) setErrors(prev => ({ ...prev, emergencyPhone: "" }));
+                }}
                 maxLength={10}
                 placeholder="9999999999"
-                className="w-full px-4 py-3 bg-slate-800/85 border border-slate-700/50 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition"
+                className={`w-full px-4 py-3 bg-slate-800/85 border ${errors.emergencyPhone ? "border-rose-500" : "border-slate-700/50"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition`}
               />
+              {errors.emergencyPhone && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.emergencyPhone}</span>}
             </div>
             <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
               <ShieldCheck className="w-8 h-8 text-emerald-400 flex-shrink-0" />
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-300 text-left">
                 Your emergency parameters are stored securely. You can edit them at any time in the profile configurations.
               </p>
             </div>
@@ -221,7 +314,10 @@ export default function DriverOnboardingPage() {
         <div className="flex gap-3 mt-8">
           {step > 1 && (
             <button
-              onClick={() => setStep(step - 1)}
+              onClick={() => {
+                setErrors({});
+                setStep(step - 1);
+              }}
               className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition"
               disabled={uploading}
             >

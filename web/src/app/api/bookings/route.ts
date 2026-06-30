@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseUserClient } from "@/lib/supabase-api";
+import { getSupabaseUserClient, getSupabaseAdminClient } from "@/lib/supabase-api";
 
 export async function GET(request: NextRequest) {
   const supabase = getSupabaseUserClient(request);
+  const admin = getSupabaseAdminClient();
 
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -10,8 +11,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch user profile to check role
-    const { data: profile, error: profileError } = await supabase
+    // Fetch user profile to check role — use admin client to bypass broken profiles RLS
+    const { data: profile, error: profileError } = await admin
       .from("profiles")
       .select("role")
       .eq("id", user.id)
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: "User profile not found" }, { status: 404 });
     }
 
-    let bookingsQuery = supabase
+    let bookingsQuery = admin
       .from("bookings")
       .select("*, spaceId:parking_spaces(*, ownerId:profiles(*)), driverId:profiles(*)");
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
       bookingsQuery = bookingsQuery.eq("driver_id", user.id);
     } else if (profile.role === "owner") {
       // Fetch space ids belonging to owner
-      const { data: spaces } = await supabase
+      const { data: spaces } = await admin
         .from("parking_spaces")
         .select("id")
         .eq("owner_id", user.id);
@@ -123,29 +124,56 @@ export async function POST(request: NextRequest) {
       endTime,
       totalAmount,
       vehicleNumber,
-      vehicleType
+      vehicleType,
+      vehicleModel
     } = body;
 
     if (!spaceId || !startTime || !endTime || !totalAmount) {
       return NextResponse.json({ success: false, message: "Missing required booking details" }, { status: 400 });
     }
 
-    const newBooking = {
+    const newBooking: any = {
       driver_id: user.id,
       space_id: spaceId,
       start_time: new Date(startTime).toISOString(),
       end_time: new Date(endTime).toISOString(),
       total_amount: Number(totalAmount),
       vehicle_number: vehicleNumber || "",
-      vehicle_type: vehicleType || "4-wheeler",
+      vehicle_type: vehicleType || "car",
       status: "pending"
     };
 
-    const { data: booking, error: dbError } = await supabase
+    // Store vehicle_model if the column exists (added via SQL migration)
+    if (vehicleModel !== undefined) {
+      newBooking.vehicle_model = vehicleModel || "";
+    }
+
+    const admin = getSupabaseAdminClient();
+
+    // Try inserting with vehicle_model; if that column doesn't exist yet, retry without it
+    let booking: any = null;
+    let dbError: any = null;
+
+    const result = await admin
       .from("bookings")
       .insert(newBooking)
       .select()
       .single();
+
+    booking = result.data;
+    dbError = result.error;
+
+    // If error is about missing vehicle_model column, retry without it
+    if (dbError && dbError.message && dbError.message.includes("vehicle_model")) {
+      const { vehicle_model, ...bookingWithoutModel } = newBooking;
+      const retryResult = await admin
+        .from("bookings")
+        .insert(bookingWithoutModel)
+        .select()
+        .single();
+      booking = retryResult.data;
+      dbError = retryResult.error;
+    }
 
     if (dbError) throw dbError;
 

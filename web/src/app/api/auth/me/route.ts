@@ -1,29 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseUserClient } from "@/lib/supabase-api";
+import { getSupabaseUserClient, getSupabaseAdminClient } from "@/lib/supabase-api";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.split(" ")[1];
 
-  // Developer Quick Actions Mock Bypass
-  if (token && token.startsWith("mock-")) {
-    const role = token.split("-")[1];
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: `00000000-0000-0000-0000-00000000000${role === "admin" ? "3" : role === "owner" ? "2" : "1"}`,
-        name: `Mock ${role.charAt(0).toUpperCase() + role.slice(1)}`,
-        email: `${role}@parkshare.com`,
-        phone: "9999999999",
-        role,
-        is_verified: true,
-        rating: 5.0,
-        avatar_url: ""
-      }
-    });
-  }
+
 
   const supabase = getSupabaseUserClient(request);
+  const admin = getSupabaseAdminClient();
   
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -31,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: profile, error: dbError } = await supabase
+    const { data: profile, error: dbError } = await admin
       .from("profiles")
       .select("*")
       .eq("id", user.id)
@@ -49,7 +34,7 @@ export async function GET(request: NextRequest) {
         rating: 5.0
       };
 
-      const { data: createdProfile } = await supabase
+      const { data: createdProfile } = await admin
         .from("profiles")
         .insert(newProfile)
         .select()

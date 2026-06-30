@@ -13,7 +13,8 @@ interface ParkingSpace {
   title: string;
   address: string;
   pricePerHour: number;
-  rating: number;
+  rating?: number;
+  averageRating?: number;
   images: string[];
 }
 
@@ -39,29 +40,29 @@ export default function LandingPage() {
         }
       } catch (err) {
         console.warn("Failed to load recommendations, displaying simulated fallback:", err);
-        // Simulated spaces for beautiful layout
+        // Simulated spaces for beautiful layout - Tamil Nadu locations
         setRecommendedSpaces([
           {
             _id: "65f80b12a3d0ef0000000001",
-            title: "Premium Covered Slot Near Metro",
-            address: "Sector 21 Metro Station, Gurugram",
+            title: "Covered Parking Near Chennai Central",
+            address: "Park Town, Chennai, Tamil Nadu",
             pricePerHour: 40,
             rating: 4.8,
             images: ["https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=400"],
           },
           {
             _id: "65f80b12a3d0ef0000000002",
-            title: "Private Residential Garage Slot",
-            address: "DLF Phase 3, Gurugram",
+            title: "Private Garage Slot – Anna Nagar",
+            address: "Anna Nagar West, Chennai, Tamil Nadu",
             pricePerHour: 30,
             rating: 4.9,
             images: ["https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=400"],
           },
           {
             _id: "65f80b12a3d0ef0000000003",
-            title: "Secure Under Ground Car Parking",
-            address: "Golf Course Road, Gurugram",
-            pricePerHour: 60,
+            title: "Secure Basement Parking – Coimbatore",
+            address: "RS Puram, Coimbatore, Tamil Nadu",
+            pricePerHour: 25,
             rating: 4.7,
             images: ["https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=400"],
           },
@@ -177,7 +178,7 @@ export default function LandingPage() {
                   />
                   <span className="absolute top-3 right-3 px-2 py-1 bg-slate-900/80 backdrop-blur-sm rounded-lg text-xs font-bold text-white flex items-center gap-1">
                     <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                    {space.rating.toFixed(1)}
+                    {(space.rating ?? space.averageRating ?? 5.0).toFixed(1)}
                   </span>
                 </div>
 

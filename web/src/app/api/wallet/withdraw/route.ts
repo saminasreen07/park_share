@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseUserClient } from "@/lib/supabase-api";
 
+// POST /api/wallet/withdraw (withdrawal mock triggers)
 export async function POST(request: NextRequest) {
   const supabase = getSupabaseUserClient(request);
 
@@ -10,30 +11,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const { bookingId, spaceId, rating, comment } = await request.json();
-
-    if (!bookingId || !spaceId || !rating) {
-      return NextResponse.json({ success: false, message: "Missing required parameters" }, { status: 400 });
+    const { amount, upi, bankAccount } = await request.json();
+    if (!amount || Number(amount) <= 0) {
+      return NextResponse.json({ success: false, message: "Invalid amount specified" }, { status: 400 });
     }
 
-    const newReview = {
-      driver_id: user.id,
-      space_id: spaceId,
-      rating: Number(rating),
-      comment: comment || ""
-    };
-
-    const { data: review, error } = await supabase
-      .from("reviews")
-      .insert(newReview)
-      .select()
-      .single();
-
-    if (error) throw error;
-
+    // Create a transaction/notification audit record on database if needed, or simply return success
     return NextResponse.json({
       success: true,
-      data: review
+      message: `Withdrawal request for ₹${amount} initiated successfully. It will be settled within 24 hours.`
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

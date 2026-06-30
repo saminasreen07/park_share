@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/navigation";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
-import { Car, Plus, Star, MapPin, Eye, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
+import { Car, Plus, Star, MapPin, Eye, ToggleLeft, ToggleRight, Trash2, Edit } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface ParkingSpace {
@@ -12,7 +11,7 @@ interface ParkingSpace {
   title: string;
   address: string;
   pricePerHour: number;
-  rating: number;
+  rating?: number;
   totalSlots: number;
   availableSlots: number;
   status: "pending" | "approved" | "rejected";
@@ -169,7 +168,7 @@ export default function OwnerListingsPage() {
                 
                 <span className="absolute top-3 right-3 px-2 py-1 bg-slate-900/80 backdrop-blur-sm rounded-lg text-xs font-bold text-white flex items-center gap-1">
                   <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                  {space.rating.toFixed(1)}
+                  {(space.rating ?? 5.0).toFixed(1)}
                 </span>
               </div>
 
@@ -213,6 +212,15 @@ export default function OwnerListingsPage() {
                         Offline
                       </>
                     )}
+                  </button>
+
+                  <button
+                    onClick={() => router.push(`/owner/listings/edit/${space._id}`)}
+                    className="py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-xs font-bold flex items-center justify-center gap-1 text-slate-600 dark:text-slate-300"
+                    title="Edit Listing Details"
+                  >
+                    <Edit className="w-4 h-4 text-secondary" />
+                    Edit
                   </button>
 
                   <button

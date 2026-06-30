@@ -103,7 +103,7 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <div className="w-full space-y-2.5 text-left border-t border-slate-100 dark:border-slate-800/80 pt-4">
+            <div className="w-full space-y-2.5 text-left border-t border-slate-100 dark:border-slate-800/80 pt-4 pb-2">
               <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-semibold">
                 <Mail className="w-4 h-4 text-primary" />
                 <span className="truncate">{user.email}</span>
@@ -113,6 +113,14 @@ export default function ProfilePage() {
                 <span>{user.phone}</span>
               </div>
             </div>
+
+            <button
+              onClick={() => router.push("/profile/edit")}
+              className="w-full btn-primary py-2.5 flex items-center justify-center gap-2 font-bold text-xs"
+            >
+              <User className="w-4 h-4 text-white" />
+              Edit Profile Details
+            </button>
 
             <button
               onClick={handlePortalSwitch}

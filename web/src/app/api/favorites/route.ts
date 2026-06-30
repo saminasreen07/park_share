@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseUserClient } from "@/lib/supabase-api";
+import { getSupabaseUserClient, getSupabaseAdminClient } from "@/lib/supabase-api";
 
 export async function GET(request: NextRequest) {
   const supabase = getSupabaseUserClient(request);
+  const admin = getSupabaseAdminClient();
 
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: favorites, error } = await supabase
+    const { data: favorites, error } = await admin
       .from("favorites")
       .select("*, space_id:parking_spaces(*, ownerId:profiles(*))")
       .eq("user_id", user.id);
@@ -28,6 +29,8 @@ export async function GET(request: NextRequest) {
         address: s.address,
         pricePerHour: Number(s.price_per_hour),
         images: s.images || [],
+        rating: Number(s.average_rating || 0.0),
+        averageRating: Number(s.average_rating || 0.0),
         location: {
           type: "Point",
           coordinates: [Number(s.longitude), Number(s.latitude)]
@@ -62,7 +65,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "spaceId is required" }, { status: 400 });
     }
 
-    const { data: favorite, error } = await supabase
+    const admin = getSupabaseAdminClient();
+    const { data: favorite, error } = await admin
       .from("favorites")
       .insert({ user_id: user.id, space_id: spaceId })
       .select()
@@ -94,7 +98,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, message: "spaceId is required" }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const admin = getSupabaseAdminClient();
+    const { error } = await admin
       .from("favorites")
       .delete()
       .eq("user_id", user.id)

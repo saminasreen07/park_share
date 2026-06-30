@@ -102,12 +102,13 @@ export default function OwnerDashboardPage() {
 
   const handleBookingAction = async (bookingId: string, action: "approve" | "reject") => {
     try {
-      const endpoint = action === "approve" ? `/bookings/confirm` : `/bookings/${bookingId}/cancel`;
-      const body = action === "approve" 
-        ? { bookingId, paymentId: "pay_manual_approval" }
-        : {};
+      const status = action === "approve" ? "confirmed" : "cancelled";
+      const payload: any = { status };
+      if (action === "approve") {
+        payload.paymentId = "pay_manual_approval";
+      }
       
-      const response = await apiClient.post(endpoint, body);
+      const response = await apiClient.put(`/bookings/${bookingId}`, payload);
       if (response.data && response.data.success) {
         toast.success(`Booking request ${action === "approve" ? "approved" : "rejected"} successfully!`);
         // Remove from list

@@ -10,13 +10,18 @@ import toast from "react-hot-toast";
 export default function DriverLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user, logout, fetchCurrentUser } = useAuthStore();
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(2);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
+    // Fetch user profile session
+    fetchCurrentUser();
+    fetchNotifications();
+
     // Read theme from document attributes
     const currentTheme = document.documentElement.getAttribute("data-theme") as "light" | "dark";
     if (currentTheme) {
@@ -24,7 +29,21 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
     } else {
       document.documentElement.setAttribute("data-theme", "dark");
     }
-  }, []);
+  }, [fetchCurrentUser]);
+
+  const fetchNotifications = async () => {
+    try {
+      const { apiClient } = await import("@/lib/api-client");
+      const response = await apiClient.get("/notifications");
+      if (response.data && response.data.success) {
+        setNotifications(response.data.data || []);
+        setUnreadNotifications(response.data.unreadCount || 0);
+      }
+    } catch {
+      // Notifications fetch failed silently — show no badge
+      setUnreadNotifications(0);
+    }
+  };
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -90,47 +109,64 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
             {/* Right Side Icons */}
             <div className="hidden md:flex items-center space-x-4">
               {/* Notification Bell */}
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setNotificationsOpen(!notificationsOpen);
-                    setUnreadNotifications(0);
-                  }}
-                  className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition relative"
-                >
-                  <Bell className="w-5 h-5" />
-                  {unreadNotifications > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4.5 h-4.5 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-white dark:border-[#090D16]">
-                      {unreadNotifications}
-                    </span>
-                  )}
-                </button>
+              {user && (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setNotificationsOpen(!notificationsOpen);
+                      if (!notificationsOpen && unreadNotifications > 0) {
+                        setUnreadNotifications(0);
+                        // Mark all as read in backend
+                        import("@/lib/api-client").then(({ apiClient }) => {
+                          apiClient.put("/notifications").catch(() => {});
+                        });
+                      }
+                    }}
+                    className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition relative"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {unreadNotifications > 0 && (
+                      <span className="absolute top-1.5 right-1.5 w-4.5 h-4.5 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-white dark:border-[#090D16]">
+                        {unreadNotifications}
+                      </span>
+                    )}
+                  </button>
 
-                {/* Notifications Dropdown */}
-                {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-80 glass-card rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl p-4 animate-fade-in text-foreground">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-bold text-sm">Notifications</span>
-                      <button 
-                        onClick={() => setNotificationsOpen(false)}
-                        className="text-xs text-primary hover:underline font-semibold"
-                      >
-                        Close
-                      </button>
-                    </div>
-                    <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                      <div className="p-2.5 rounded-lg bg-primary/10 dark:bg-primary/20 border-l-4 border-primary">
-                        <p className="text-xs font-bold text-slate-800 dark:text-white">Booking Approved!</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Your booking at Nexon Private Garage has been approved by the host.</p>
+                  {/* Notifications Dropdown */}
+                  {notificationsOpen && (
+                    <div className="absolute right-0 mt-2 w-80 glass-card rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl p-4 animate-fade-in text-foreground">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="font-bold text-sm">Notifications</span>
+                        <button 
+                          onClick={() => setNotificationsOpen(false)}
+                          className="text-xs text-primary hover:underline font-semibold"
+                        >
+                          Close
+                        </button>
                       </div>
-                      <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800">
-                        <p className="text-xs font-bold text-slate-800 dark:text-white">Welcome to ParkShare</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Find secure, cheap parking nearby and start saving today.</p>
+                      <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
+                        {notifications.length === 0 ? (
+                          <p className="text-xs text-slate-400 text-center py-4">No notifications yet.</p>
+                        ) : (
+                          notifications.map((notif: any) => (
+                            <div
+                              key={notif.id}
+                              className={`p-2.5 rounded-lg border-l-4 ${
+                                !notif.is_read
+                                  ? "bg-primary/10 dark:bg-primary/20 border-primary"
+                                  : "bg-slate-100 dark:bg-slate-800 border-transparent"
+                              }`}
+                            >
+                              <p className="text-xs font-bold text-slate-800 dark:text-white">{notif.title}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{notif.message}</p>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* Theme Toggle */}
               <button

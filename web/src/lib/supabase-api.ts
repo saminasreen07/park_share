@@ -10,16 +10,9 @@ export function getSupabaseUserClient(request: NextRequest) {
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return createClient(supabaseUrl, supabaseAnonKey);
   }
-  
+
   const token = authHeader.split(" ")[1];
-  
-  // Handlers can check if this token is a mock token for development bypass
-  // E.g. 'mock-driver', 'mock-owner', 'mock-admin'
-  if (token.startsWith("mock-")) {
-    // Return admin client for quick developer onboarding testing if keys not fully configured
-    return createClient(supabaseUrl, supabaseServiceKey);
-  }
-  
+
   return createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {

@@ -9,9 +9,8 @@ export function middleware(request: NextRequest) {
   // Define route categories
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/signup");
   const isOwnerRoute = pathname.startsWith("/owner");
-  const isAdminRoute = pathname.startsWith("/admin");
   const isOnboardingRoute = pathname.startsWith("/onboarding");
-  const isDriverRoute = 
+  const isDriverRoute =
     pathname.startsWith("/search") ||
     pathname.startsWith("/bookings") ||
     pathname.startsWith("/wallet") ||
@@ -22,7 +21,7 @@ export function middleware(request: NextRequest) {
 
   // 1. If not authenticated and trying to access a protected route
   if (!token) {
-    if (isOwnerRoute || isAdminRoute || isDriverRoute || isOnboardingRoute) {
+    if (isOwnerRoute || isDriverRoute || isOnboardingRoute) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
@@ -31,27 +30,17 @@ export function middleware(request: NextRequest) {
 
   // 2. If authenticated and trying to access login/signup
   if (token && isAuthRoute) {
-    // Redirect to respective dashboard depending on role
-    if (role === "admin") {
-      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
-    } else if (role === "owner") {
+    if (role === "owner") {
       return NextResponse.redirect(new URL("/owner/dashboard", request.url));
     } else {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
-  // 3. If authenticated but role mismatch
+  // 3. If authenticated but role mismatch — only owner portal is role-restricted
   if (token) {
-    // If trying to access owner portal but is not an owner
     if (isOwnerRoute && role !== "owner") {
-      // Driver might need to onboard as owner first
       return NextResponse.redirect(new URL("/onboarding/owner", request.url));
-    }
-
-    // If trying to access admin portal but is not an admin
-    if (isAdminRoute && role !== "admin") {
-      return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
@@ -72,6 +61,5 @@ export const config = {
     "/booking/:path*",
     "/messages",
     "/owner/:path*",
-    "/admin/:path*",
   ],
 };

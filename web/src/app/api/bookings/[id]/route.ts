@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseUserClient } from "@/lib/supabase-api";
+import { getSupabaseUserClient, getSupabaseAdminClient } from "@/lib/supabase-api";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = getSupabaseUserClient(request);
+  const admin = getSupabaseAdminClient();
   const { id } = params;
 
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  if (!isUuid) {
+    return NextResponse.json({ success: false, message: "Booking not found" }, { status: 404 });
+  }
+
   try {
-    const { data: booking, error } = await supabase
+    const { data: booking, error } = await admin
       .from("bookings")
       .select("*, spaceId:parking_spaces(*, ownerId:profiles(*)), driverId:profiles(*)")
       .eq("id", id)
@@ -52,6 +57,12 @@ export async function GET(
       status: booking.status,
       vehicleNumber: booking.vehicle_number,
       vehicleType: booking.vehicle_type,
+      vehicleModel: booking.vehicle_model || "",
+      // Convenience object for confirmation/checkout pages
+      vehicleDetails: {
+        model: booking.vehicle_model || booking.vehicle_type || "Vehicle",
+        plateNumber: booking.vehicle_number || ""
+      },
       
       // Uploaded verification documents
       vehicleFrontUrl: booking.vehicle_front_url,
@@ -87,6 +98,11 @@ export async function PUT(
   const supabase = getSupabaseUserClient(request);
   const { id } = params;
 
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  if (!isUuid) {
+    return NextResponse.json({ success: false, message: "Booking not found" }, { status: 404 });
+  }
+
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -98,6 +114,7 @@ export async function PUT(
       status,
       vehicleNumber,
       vehicleType,
+      vehicleModel,
       vehicleFrontUrl,
       vehicleRearUrl,
       vehicleSideUrl,
@@ -114,6 +131,7 @@ export async function PUT(
     if (status !== undefined) updateData.status = status;
     if (vehicleNumber !== undefined) updateData.vehicle_number = vehicleNumber;
     if (vehicleType !== undefined) updateData.vehicle_type = vehicleType;
+    if (vehicleModel !== undefined) updateData.vehicle_model = vehicleModel;
     if (vehicleFrontUrl !== undefined) updateData.vehicle_front_url = vehicleFrontUrl;
     if (vehicleRearUrl !== undefined) updateData.vehicle_rear_url = vehicleRearUrl;
     if (vehicleSideUrl !== undefined) updateData.vehicle_side_url = vehicleSideUrl;
@@ -131,24 +149,25 @@ export async function PUT(
       updateData.check_in_time = new Date(checkInTime).toISOString();
     }
     
+    const admin = getSupabaseAdminClient();
     if (checkOutTime === "now") {
       updateData.check_out_time = new Date().toISOString();
       updateData.status = "completed";
       
       // On check-out completed, release parking space available slots
-      const { data: booking } = await supabase.from("bookings").select("space_id").eq("id", id).single();
+      const { data: booking } = await admin.from("bookings").select("space_id").eq("id", id).single();
       if (booking) {
         // Increment available slots
-        const { data: space } = await supabase.from("parking_spaces").select("available_slots, total_slots").eq("id", booking.space_id).single();
+        const { data: space } = await admin.from("parking_spaces").select("available_slots, total_slots").eq("id", booking.space_id).single();
         if (space && space.available_slots < space.total_slots) {
-          await supabase.from("parking_spaces").update({ available_slots: space.available_slots + 1 }).eq("id", booking.space_id);
+          await admin.from("parking_spaces").update({ available_slots: space.available_slots + 1 }).eq("id", booking.space_id);
         }
       }
     } else if (checkOutTime) {
       updateData.check_out_time = new Date(checkOutTime).toISOString();
     }
 
-    const { data: updatedBooking, error: dbError } = await supabase
+    const { data: updatedBooking, error: dbError } = await admin
       .from("bookings")
       .update(updateData)
       .eq("id", id)

@@ -37,7 +37,7 @@ export default function BookingsListPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"active" | "upcoming" | "past">("active");
-  
+
   // QR Code Modal
   const [qrBooking, setQrBooking] = useState<Booking | null>(null);
 
@@ -53,15 +53,37 @@ export default function BookingsListPage() {
 
   const fetchBookings = async () => {
     setLoading(true);
+    let apiBookings: Booking[] = [];
     try {
       const response = await apiClient.get("/bookings");
       if (response.data && response.data.success) {
-        setBookings(response.data.data);
+        apiBookings = response.data.data;
       }
     } catch (err) {
-      console.warn("Failed to fetch bookings, using seeded fallbacks:", err);
-      // Fallback bookings for visual layout
-      setBookings([
+      console.warn("Failed to fetch bookings from API, using empty list:", err);
+    }
+
+    // Load local bookings from localStorage
+    let localBookings: Booking[] = [];
+    if (typeof window !== "undefined") {
+      try {
+        localBookings = JSON.parse(localStorage.getItem("parkshare_local_bookings") || "[]");
+      } catch (e) {
+        console.error("Failed to parse local bookings:", e);
+      }
+    }
+
+    // Combine them, ensuring unique _id
+    const combined = [...localBookings];
+    apiBookings.forEach((ab) => {
+      if (!combined.some((cb) => cb._id === ab._id)) {
+        combined.push(ab);
+      }
+    });
+
+    // If both list and API are empty, seed fallbacks with Tamil Nadu locations
+    if (combined.length === 0) {
+      combined.push(
         {
           _id: "book-1",
           receiptId: `REC-${Date.now() - 5000}`,
@@ -69,12 +91,12 @@ export default function BookingsListPage() {
           endTime: new Date(Date.now() + 90 * 60 * 1000).toISOString(),
           status: "active",
           totalAmount: 80,
-          vehicleNumber: "DL 3C AB 1234",
+          vehicleNumber: "TN 01 AB 1234",
           vehicleType: "car",
           spaceId: {
             _id: "space-1",
-            title: "Premium Covered Slot Near Metro",
-            address: "Sector 21 Metro Station, Gurugram, Haryana",
+            title: "Covered Parking – Chennai Central",
+            address: "Park Town, Chennai, Tamil Nadu",
             pricePerHour: 40,
             ownerId: { name: "Rajesh Kumar", phone: "+919876543210" },
           },
@@ -86,20 +108,21 @@ export default function BookingsListPage() {
           endTime: new Date(Date.now() + 27 * 60 * 60 * 1000).toISOString(),
           status: "confirmed",
           totalAmount: 120,
-          vehicleNumber: "DL 3C AB 1234",
+          vehicleNumber: "TN 02 CD 5678",
           vehicleType: "car",
           spaceId: {
             _id: "space-2",
-            title: "Private Residential Garage Slot",
-            address: "DLF Phase 3, Gurugram, Haryana",
+            title: "Private Garage – Anna Nagar West",
+            address: "Anna Nagar West, Chennai, Tamil Nadu",
             pricePerHour: 30,
-            ownerId: { name: "Suresh Gupta", phone: "+918888888888" },
+            ownerId: { name: "Suresh Narayanan", phone: "+918888888888" },
           },
-        },
-      ]);
-    } finally {
-      setLoading(false);
+        }
+      );
     }
+
+    setBookings(combined);
+    setLoading(false);
   };
 
   const handleCancelBooking = async (bookingId: string) => {
@@ -119,7 +142,7 @@ export default function BookingsListPage() {
     const now = new Date();
     const start = new Date(b.startTime);
     const end = new Date(b.endTime);
-    
+
     const isActuallyActive = b.status === "active" || (b.status === "confirmed" && now >= start && now < end);
     const isActuallyUpcoming = b.status === "confirmed" && now < start;
     const isActuallyPast = b.status === "completed" || b.status === "cancelled" || (["confirmed", "active"].includes(b.status) && now >= end);
@@ -156,11 +179,10 @@ export default function BookingsListPage() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg uppercase transition ${
-              activeTab === tab
+            className={`flex-1 py-2 text-xs font-bold rounded-lg uppercase transition ${activeTab === tab
                 ? "bg-primary text-white shadow-md shadow-primary/10"
                 : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
-            }`}
+              }`}
           >
             {tab}
           </button>
@@ -180,7 +202,6 @@ export default function BookingsListPage() {
       ) : (
         <div className="space-y-4">
           {filteredBookings.map((booking) => {
-            const qrValue = `${window.location.origin}/bookings/${booking._id}/verify`;
             return (
               <div
                 key={booking._id}
@@ -191,11 +212,10 @@ export default function BookingsListPage() {
                     <span className="text-xs font-bold text-slate-400 uppercase">
                       REF: {booking.receiptId?.substring(0, 12) || booking._id.substring(0, 8)}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                      booking.status === "confirmed" ? "bg-blue-500/10 text-blue-400" :
-                      booking.status === "active" ? "bg-emerald-500/10 text-emerald-400" :
-                      booking.status === "completed" ? "bg-slate-800 text-slate-400" : "bg-rose-500/10 text-rose-400"
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${booking.status === "confirmed" ? "bg-blue-500/10 text-blue-400" :
+                        booking.status === "active" ? "bg-emerald-500/10 text-emerald-400" :
+                          booking.status === "completed" ? "bg-slate-800 text-slate-400" : "bg-rose-500/10 text-rose-400"
+                      }`}>
                       {booking.status}
                     </span>
                   </div>
@@ -295,7 +315,12 @@ export default function BookingsListPage() {
 
             {/* QR code SVG */}
             <div className="bg-white p-4 rounded-2xl inline-block shadow-inner mx-auto">
-              <QRCodeSVG value={`${window.location.origin}/bookings/${qrBooking._id}/verify`} size={180} />
+              <QRCodeSVG
+                value={typeof window !== "undefined" ? `${window.location.origin}/bookings/${qrBooking._id}/verify` : ""}
+                size={180}
+                fgColor="#000000"
+                bgColor="#ffffff"
+              />
             </div>
 
             <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 text-left text-xs space-y-1.5">

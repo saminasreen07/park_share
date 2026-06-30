@@ -15,19 +15,42 @@ export default function SignupPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const validate = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!name.trim()) {
+      newErrors.name = "Please enter your full name.";
+    }
+    if (!email) {
+      newErrors.email = "Email address is required.";
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Invalid email address.";
+    }
+    if (!phone) {
+      newErrors.phone = "Please enter your phone number.";
+    } else if (phone.length < 10) {
+      newErrors.phone = "Phone number must be at least 10 digits.";
+    }
+    if (!password) {
+      newErrors.password = "Password is required.";
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters long.";
+    }
+    setErrors(newErrors);
+    
+    // Toast the first error
+    const firstErr = Object.values(newErrors)[0];
+    if (firstErr) {
+      toast.error(firstErr);
+    }
+
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !phone || !password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    if (phone.length < 10) {
-      toast.error("Please enter a valid 10-digit phone number");
-      return;
-    }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
+    if (!validate()) {
       return;
     }
 
@@ -84,13 +107,16 @@ export default function SignupPage() {
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errors.name) setErrors(prev => ({ ...prev, name: "" }));
+                }}
                 placeholder="John Doe"
-                className="w-full px-4 py-3 bg-slate-900/80 border border-slate-800 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition-all"
+                className={`w-full px-4 py-3 bg-slate-900/80 border ${errors.name ? "border-rose-500" : "border-slate-800"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition-all`}
                 disabled={loading}
-                required
               />
             </div>
+            {errors.name && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.name}</span>}
           </div>
 
           <div>
@@ -101,13 +127,16 @@ export default function SignupPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors(prev => ({ ...prev, email: "" }));
+                }}
                 placeholder="john@example.com"
-                className="w-full px-4 py-3 bg-slate-900/80 border border-slate-800 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition-all"
+                className={`w-full px-4 py-3 bg-slate-900/80 border ${errors.email ? "border-rose-500" : "border-slate-800"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition-all`}
                 disabled={loading}
-                required
               />
             </div>
+            {errors.email && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.email}</span>}
           </div>
 
           <div>
@@ -119,14 +148,17 @@ export default function SignupPage() {
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                onChange={(e) => {
+                  setPhone(e.target.value.replace(/\D/g, "").slice(0, 10));
+                  if (errors.phone) setErrors(prev => ({ ...prev, phone: "" }));
+                }}
                 placeholder="9999999999"
                 maxLength={10}
-                className="w-full pl-12 pr-4 py-3 bg-slate-900/80 border border-slate-800 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition-all"
+                className={`w-full pl-12 pr-4 py-3 bg-slate-900/80 border ${errors.phone ? "border-rose-500" : "border-slate-800"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition-all`}
                 disabled={loading}
-                required
               />
             </div>
+            {errors.phone && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.phone}</span>}
           </div>
 
           <div>
@@ -137,13 +169,16 @@ export default function SignupPage() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors(prev => ({ ...prev, password: "" }));
+                }}
                 placeholder="•••••••• (Min 6 characters)"
-                className="w-full px-4 py-3 bg-slate-900/80 border border-slate-800 rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition-all"
+                className={`w-full px-4 py-3 bg-slate-900/80 border ${errors.password ? "border-rose-500" : "border-slate-800"} rounded-xl outline-none focus:border-primary text-white text-sm font-semibold transition-all`}
                 disabled={loading}
-                required
               />
             </div>
+            {errors.password && <span className="text-xs text-rose-500 font-semibold mt-1 block text-left">{errors.password}</span>}
           </div>
 
           <div>

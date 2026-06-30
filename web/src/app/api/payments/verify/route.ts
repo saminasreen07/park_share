@@ -2,9 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-api";
 import crypto from "crypto";
 
-async function sendTelegramMessage(text: string) {
+async function fetchWithRetry(url: string, options: any, retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) {
+        return response;
+      }
+      console.warn(`Telegram API call returned status ${response.status}. Retrying in ${delay}ms...`);
+    } catch (err) {
+      console.warn(`Telegram API call failed: ${err}. Retrying in ${delay}ms...`);
+    }
+    if (i < retries - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay *= 2; // exponential backoff
+    }
+  }
+  throw new Error(`Failed to complete request to Telegram API after ${retries} attempts.`);
+}
+
+async function sendTelegramMessage(text: string, customChatId?: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_NOTIFICATIONS_CHAT_ID;
+  const chatId = customChatId || process.env.TELEGRAM_NOTIFICATIONS_CHAT_ID;
   
   if (!token || !chatId || token.startsWith("YOUR_")) {
     console.warn("Telegram configurations missing or using placeholders. Skipping bot alerts.");
@@ -13,7 +32,7 @@ async function sendTelegramMessage(text: string) {
 
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    await fetch(url, {
+    await fetchWithRetry(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -24,6 +43,32 @@ async function sendTelegramMessage(text: string) {
     });
   } catch (err) {
     console.error("Failed to send Telegram alert message:", err);
+  }
+}
+
+async function sendTelegramPhoto(photoUrl: string, caption: string, customChatId?: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = customChatId || process.env.TELEGRAM_NOTIFICATIONS_CHAT_ID;
+  
+  if (!token || !chatId || token.startsWith("YOUR_")) {
+    console.warn("Telegram bot token or chat ID is missing. Skipping bot photo alerts.");
+    return;
+  }
+
+  try {
+    const url = `https://api.telegram.org/bot${token}/sendPhoto`;
+    await fetchWithRetry(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: photoUrl,
+        caption,
+        parse_mode: "HTML"
+      })
+    });
+  } catch (err) {
+    console.error("Failed to send Telegram photo alert:", err);
   }
 }
 
@@ -39,7 +84,8 @@ export async function POST(request: NextRequest) {
       razorpay_payment_id,
       razorpay_signature,
       amount,
-      isMock
+      isMock,
+      telegramChatId
     } = body;
 
     if (!bookingId || !razorpay_order_id) {
@@ -110,31 +156,44 @@ export async function POST(request: NextRequest) {
       }
     ]);
 
-    // 5. Send Telegram Alerts to bot channel
-    const qrCodeLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/bookings/${booking.id}/verify`;
-    const checkInTimeStr = new Date(booking.start_time).toLocaleString();
-    const checkOutTimeStr = new Date(booking.end_time).toLocaleString();
+    // 5. Send Telegram Alerts (spec-compliant format)
+    const startDate = new Date(booking.start_time);
+    const endDate = new Date(booking.end_time);
+    
+    const formatDate = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const formatTime = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
+    const durationMs = endDate.getTime() - startDate.getTime();
+    const durationHrs = Math.round(durationMs / (1000 * 60 * 60));
+    const durationLabel = `${durationHrs} Hour${durationHrs !== 1 ? "s" : ""}`;
+    
+    const lat = Number(booking.spaceId?.latitude || 0);
+    const lng = Number(booking.spaceId?.longitude || 0);
+    const mapsUrl = lat && lng
+      ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.spaceId?.address || "")}`;
+    
+    const vehicleDisplay = booking.vehicle_model
+      ? `${booking.vehicle_model} | ${booking.vehicle_number}`
+      : `${booking.vehicle_type} | ${booking.vehicle_number}`;
 
-    // Alert Message for Driver / Owner / Admin channel
-    const telegramMessage = `
-<b>🚨 PARKING RESERVATION CONFIRMED 🚨</b>
+    // Short booking ID
+    const bookingShortId = `BK-${booking.id.replace(/-/g, "").substring(0, 5).toUpperCase()}`;
 
-<b>Booking ID:</b> <code>${booking.id}</code>
-<b>Driver:</b> ${booking.driverId?.name} (${booking.driverId?.phone || "N/A"})
-<b>Vehicle Number:</b> ${booking.vehicle_number} (${booking.vehicle_type})
-<b>Parking Spot:</b> ${booking.spaceId?.title}
-<b>Parking Address:</b> ${booking.spaceId?.address}
-<b>Reservation Time:</b>
-From: <code>${checkInTimeStr}</code>
-To: <code>${checkOutTimeStr}</code>
-<b>Price Paid:</b> ₹${booking.total_amount} (INR)
-<b>Payment Status:</b> CAPTURED (Razorpay)
+    const telegramMessage = `✅ <b>New Booking Confirmed</b>\n\n<b>Booking ID:</b> ${bookingShortId}\n<b>Driver:</b> ${booking.driverId?.name || "Driver"}\n<b>Vehicle:</b> ${vehicleDisplay}\n<b>Parking:</b> ${booking.spaceId?.title || "Parking Space"}\n<b>Address:</b> ${booking.spaceId?.address || ""}\n<b>Date:</b> ${formatDate(startDate)}\n<b>Time:</b> ${formatTime(startDate)} – ${formatTime(endDate)}\n<b>Duration:</b> ${durationLabel}\n<b>Amount Paid:</b> ₹${booking.total_amount}\n<b>Status:</b> Confirmed\n📍 <a href="${mapsUrl}">Google Maps</a>`;
 
-<b>Check-in Pass Link (QR Verification):</b>
-<a href="${qrCodeLink}">Verify Check-in QR</a>
-`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const verificationUrl = `${appUrl}/bookings/${booking.id}/verify`;
+    const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(verificationUrl)}`;
 
+    // Send to admin/channel
     await sendTelegramMessage(telegramMessage);
+    await sendTelegramPhoto(qrCodeImageUrl, `🎫 <b>Check-In QR Pass</b> for Booking: ${bookingShortId}`);
+
+    // Send to driver's personal chat if they entered their Telegram details
+    if (telegramChatId) {
+      await sendTelegramMessage(telegramMessage, String(telegramChatId));
+      await sendTelegramPhoto(qrCodeImageUrl, `🎫 <b>Check-In QR Pass</b> for Booking: ${bookingShortId}`, String(telegramChatId));
+    }
 
     return NextResponse.json({
       success: true,

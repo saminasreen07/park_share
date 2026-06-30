@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseUserClient } from "@/lib/supabase-api";
+import { getSupabaseUserClient, getSupabaseAdminClient } from "@/lib/supabase-api";
 import Razorpay from "razorpay";
 
 export async function POST(request: NextRequest) {
@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Update receipt id on booking record
-    await supabase
+    const admin = getSupabaseAdminClient();
+    await admin
       .from("bookings")
       .update({ receipt_id: order.id })
       .eq("id", bookingId);

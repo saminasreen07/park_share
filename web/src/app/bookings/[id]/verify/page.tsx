@@ -260,7 +260,6 @@ export default function BookingVerificationPage() {
         <button
           onClick={() => {
             if (user?.role === "owner") router.push("/owner/bookings");
-            else if (user?.role === "admin") router.push("/admin/dashboard");
             else router.push("/bookings");
           }}
           className="w-full py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
